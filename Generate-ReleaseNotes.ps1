@@ -37,21 +37,19 @@ Write-Host "Please use GitHub Copilot Chat with the following prompt:" -Foregrou
 Write-Host ""
 Write-Host "---COPILOT PROMPT START---" -ForegroundColor DarkGray
 
-$prompt1 = @"
-Using ADO MCP tools:
-1. Get the list of team iterations for project '$ProjectName' and team '$TeamName'
-2. Identify the previous completed iteration (not the current one)
-3. Extract the start date and end date for that iteration
-4. Save this information to a file called 'iteration-info.json' in the output folder with this structure:
-{
-  "iterationId": "<iteration_id>",
-  "iterationName": "<iteration_name>",
-  "startDate": "<start_date>",
-  "endDate": "<end_date>",
-  "project": "$ProjectName",
-  "team": "$TeamName"
-}
-"@
+$prompt1 = "Using ADO MCP tools:`n" +
+"1. Get the list of team iterations for project '$ProjectName' and team '$TeamName'`n" +
+"2. Identify the previous completed iteration (not the current one)`n" +
+"3. Extract the start date and end date for that iteration`n" +
+"4. Save this information to a file called 'iteration-info.json' in the output folder with this structure:`n" +
+"{`n" +
+"  `"iterationId`": `"<iteration_id>`",`n" +
+"  `"iterationName`": `"<iteration_name>`",`n" +
+"  `"startDate`": `"<start_date>`",`n" +
+"  `"endDate`": `"<end_date>`",`n" +
+"  `"project`": `"$ProjectName`",`n" +
+"  `"team`": `"$TeamName`"`n" +
+"}"
 
 Write-Host $prompt1 -ForegroundColor White
 Write-Host "---COPILOT PROMPT END---" -ForegroundColor DarkGray
@@ -69,7 +67,7 @@ if (-not (Test-Path $iterationInfoPath)) {
 }
 
 $iterationInfo = Get-Content $iterationInfoPath | ConvertFrom-Json
-Write-Host "✓ Loaded iteration: $($iterationInfo.iterationName)" -ForegroundColor Green
+Write-Host "Loaded iteration: $($iterationInfo.iterationName)" -ForegroundColor Green
 Write-Host "  Start: $($iterationInfo.startDate)" -ForegroundColor Gray
 Write-Host "  End: $($iterationInfo.endDate)" -ForegroundColor Gray
 Write-Host ""
@@ -80,47 +78,45 @@ Write-Host ""
 Write-Host "---COPILOT PROMPT START---" -ForegroundColor DarkGray
 
 $areaPathsFormatted = ($AreaPaths | ForEach-Object { "'$_'" }) -join " OR "
-$prompt2 = @"
-Using ADO MCP tools:
-1. Search for all work items in project '$ProjectName' that meet ALL these criteria:
-   - Area path is $areaPathsFormatted
-   - State is 'Closed' or 'Done' or 'Completed'
-   - Closed date is between '$($iterationInfo.startDate)' and '$($iterationInfo.endDate)'
-2. For each work item found, get the full details including:
-   - ID, Title, Type, State, Area Path
-   - Description
-   - All linked pull requests (use the relations/links to find PR artifacts)
-3. For each linked PR, get the PR details including:
-   - PR ID, Title, Description
-   - Repository name
-   - Source and target branches
-4. Save all this data to 'work-items-with-prs.json' in the output folder with this structure:
-{
-  "iterationName": "$($iterationInfo.iterationName)",
-  "startDate": "$($iterationInfo.startDate)",
-  "endDate": "$($iterationInfo.endDate)",
-  "workItems": [
-    {
-      "id": <work_item_id>,
-      "title": "<work_item_title>",
-      "type": "<work_item_type>",
-      "state": "<state>",
-      "areaPath": "<area_path>",
-      "description": "<description>",
-      "pullRequests": [
-        {
-          "id": <pr_id>,
-          "title": "<pr_title>",
-          "description": "<pr_description>",
-          "repository": "<repo_name>",
-          "sourceBranch": "<source>",
-          "targetBranch": "<target>"
-        }
-      ]
-    }
-  ]
-}
-"@
+$prompt2 = "Using ADO MCP tools:`n" +
+"1. Search for all work items in project '$ProjectName' that meet ALL these criteria:`n" +
+"   - Area path is $areaPathsFormatted`n" +
+"   - State is 'Closed' or 'Done' or 'Completed'`n" +
+"   - Closed date is between '$($iterationInfo.startDate)' and '$($iterationInfo.endDate)'`n" +
+"2. For each work item found, get the full details including:`n" +
+"   - ID, Title, Type, State, Area Path`n" +
+"   - Description`n" +
+"   - All linked pull requests (use the relations/links to find PR artifacts)`n" +
+"3. For each linked PR, get the PR details including:`n" +
+"   - PR ID, Title, Description`n" +
+"   - Repository name`n" +
+"   - Source and target branches`n" +
+"4. Save all this data to 'work-items-with-prs.json' in the output folder with this structure:`n" +
+"{`n" +
+"  `"iterationName`": `"$($iterationInfo.iterationName)`",`n" +
+"  `"startDate`": `"$($iterationInfo.startDate)`",`n" +
+"  `"endDate`": `"$($iterationInfo.endDate)`",`n" +
+"  `"workItems`": [`n" +
+"    {`n" +
+"      `"id`": <work_item_id>,`n" +
+"      `"title`": `"<work_item_title>`",`n" +
+"      `"type`": `"<work_item_type>`",`n" +
+"      `"state`": `"<state>`",`n" +
+"      `"areaPath`": `"<area_path>`",`n" +
+"      `"description`": `"<description>`",`n" +
+"      `"pullRequests`": [`n" +
+"        {`n" +
+"          `"id`": <pr_id>,`n" +
+"          `"title`": `"<pr_title>`",`n" +
+"          `"description`": `"<pr_description>`",`n" +
+"          `"repository`": `"<repo_name>`",`n" +
+"          `"sourceBranch`": `"<source>`",`n" +
+"          `"targetBranch`": `"<target>`"`n" +
+"        }`n" +
+"      ]`n" +
+"    }`n" +
+"  ]`n" +
+"}"
 
 Write-Host $prompt2 -ForegroundColor White
 Write-Host "---COPILOT PROMPT END---" -ForegroundColor DarkGray
@@ -136,7 +132,7 @@ if (-not (Test-Path $workItemsPath)) {
 }
 
 $workItemsData = Get-Content $workItemsPath | ConvertFrom-Json
-Write-Host "✓ Loaded $($workItemsData.workItems.Count) work items" -ForegroundColor Green
+Write-Host "Loaded $($workItemsData.workItems.Count) work items" -ForegroundColor Green
 Write-Host ""
 
 Write-Host "Step 3: Generating internal summary for engineering managers..." -ForegroundColor Cyan
@@ -144,57 +140,43 @@ Write-Host "Please use GitHub Copilot Chat with the following prompt:" -Foregrou
 Write-Host ""
 Write-Host "---COPILOT PROMPT START---" -ForegroundColor DarkGray
 
-$prompt3 = @"
-Based on the data in 'work-items-with-prs.json', create an internal iteration summary document for engineering managers.
-
-Target Audience: Engineering managers and technical leads
-Tone: Professional, technical, data-driven
-
-The document should include:
-
-# Iteration Summary: $($iterationInfo.iterationName)
-**Period:** $($iterationInfo.startDate) to $($iterationInfo.endDate)
-**Team:** $TeamName
-**Areas:** Buses & Sensors
-
-## Executive Summary
-- Total work items completed: [count]
-- Breakdown by type (User Story, Bug, Task, etc.)
-- Breakdown by area (Buses vs Sensors)
-- Key themes and focus areas
-
-## Completed Work Items
-
-For each area path, organize work items and provide:
-- Work item ID and title
-- Brief technical description based on work item description and PR descriptions
-- Key changes/implementations from the PRs
-- Any notable technical challenges or solutions mentioned
-
-### Buses Component
-[List work items from OS\Core\Connectivity Platform\Buses]
-
-### Sensors Component
-[List work items from OS\Core\Connectivity Platform\Sensors]
-
-## Technical Highlights
-- Major features implemented
-- Critical bugs fixed
-- Infrastructure/tooling improvements
-- Technical debt addressed
-
-## Pull Request Summary
-- Total PRs merged: [count]
-- Most active repositories
-- Code review metrics (if available)
-
-## Risks and Dependencies
-- Any blocking issues mentioned in work items
-- Cross-team dependencies identified
-- Technical risks or concerns
-
-Save this to '$OutputDir\internal-summary-$timestamp.md'
-"@
+$prompt3 = "Based on the data in 'work-items-with-prs.json', create an internal iteration summary document for engineering managers.`n`n" +
+"Target Audience: Engineering managers and technical leads`n" +
+"Tone: Professional, technical, data-driven`n`n" +
+"The document should include:`n`n" +
+"# Iteration Summary: $($iterationInfo.iterationName)`n" +
+"**Period:** $($iterationInfo.startDate) to $($iterationInfo.endDate)`n" +
+"**Team:** $TeamName`n" +
+"**Areas:** Buses & Sensors`n`n" +
+"## Executive Summary`n" +
+"- Total work items completed: [count]`n" +
+"- Breakdown by type (User Story, Bug, Task, etc.)`n" +
+"- Breakdown by area (Buses vs Sensors)`n" +
+"- Key themes and focus areas`n`n" +
+"## Completed Work Items`n`n" +
+"For each area path, organize work items and provide:`n" +
+"- Work item ID and title`n" +
+"- Brief technical description based on work item description and PR descriptions`n" +
+"- Key changes/implementations from the PRs`n" +
+"- Any notable technical challenges or solutions mentioned`n`n" +
+"### Buses Component`n" +
+"[List work items from OS\Core\Connectivity Platform\Buses]`n`n" +
+"### Sensors Component`n" +
+"[List work items from OS\Core\Connectivity Platform\Sensors]`n`n" +
+"## Technical Highlights`n" +
+"- Major features implemented`n" +
+"- Critical bugs fixed`n" +
+"- Infrastructure/tooling improvements`n" +
+"- Technical debt addressed`n`n" +
+"## Pull Request Summary`n" +
+"- Total PRs merged: [count]`n" +
+"- Most active repositories`n" +
+"- Code review metrics (if available)`n`n" +
+"## Risks and Dependencies`n" +
+"- Any blocking issues mentioned in work items`n" +
+"- Cross-team dependencies identified`n" +
+"- Technical risks or concerns`n`n" +
+"Save this to '$OutputDir\internal-summary-$timestamp.md'"
 
 Write-Host $prompt3 -ForegroundColor White
 Write-Host "---COPILOT PROMPT END---" -ForegroundColor DarkGray
@@ -207,64 +189,49 @@ Write-Host "Please use GitHub Copilot Chat with the following prompt:" -Foregrou
 Write-Host ""
 Write-Host "---COPILOT PROMPT START---" -ForegroundColor DarkGray
 
-$prompt4 = @"
-Based on the data in 'work-items-with-prs.json', create release notes for the Windows Insider audience.
-
-Target Audience: Windows Insiders (technical enthusiasts, developers, early adopters)
-Tone: Friendly, informative, user-focused (not too technical)
-
-The document should include:
-
-# What's New in Buses & Sensors - $($iterationInfo.iterationName)
-
-## Overview
-Brief introduction about what changed in this iteration for connectivity and sensors.
-
-## New Features
-Describe new features in user-friendly language:
-- What the feature does
-- Why it matters to users
-- How to try it out (if applicable)
-
-## Improvements
-List improvements and enhancements:
-- Performance improvements
-- Reliability enhancements
-- Better error handling
-- UX improvements
-
-## Bug Fixes
-Notable bug fixes that users would care about:
-- What was broken
-- What's now fixed
-- Impact on user experience
-
-## Known Issues
-Any known issues or limitations to be aware of.
-
-## For Developers
-Technical details for developers working with these APIs:
-- API changes
-- Breaking changes
-- New capabilities
-- Sample code or documentation links (if applicable)
-
-## What's Next
-Tease upcoming work or features in development (be cautious about commitments).
-
----
-**Note:** These features are available to Windows Insiders in [specify builds/rings if known].
-
-Guidelines:
-- Use clear, user-friendly language
-- Focus on user impact, not implementation details
-- Group related changes together
-- Use active voice
-- Keep it concise but informative
-- Avoid internal jargon or code names
-
-Save this to '$OutputDir\insider-release-notes-$timestamp.md'
-"@
+$prompt4 = "Based on the data in 'work-items-with-prs.json', create release notes for the Windows Insider audience.`n`n" +
+"Target Audience: Windows Insiders (technical enthusiasts, developers, early adopters)`n" +
+"Tone: Friendly, informative, user-focused (not too technical)`n`n" +
+"The document should include:`n`n" +
+"# What's New in Buses & Sensors - $($iterationInfo.iterationName)`n`n" +
+"## Overview`n" +
+"Brief introduction about what changed in this iteration for connectivity and sensors.`n`n" +
+"## New Features`n" +
+"Describe new features in user-friendly language:`n" +
+"- What the feature does`n" +
+"- Why it matters to users`n" +
+"- How to try it out (if applicable)`n`n" +
+"## Improvements`n" +
+"List improvements and enhancements:`n" +
+"- Performance improvements`n" +
+"- Reliability enhancements`n" +
+"- Better error handling`n" +
+"- UX improvements`n`n" +
+"## Bug Fixes`n" +
+"Notable bug fixes that users would care about:`n" +
+"- What was broken`n" +
+"- What's now fixed`n" +
+"- Impact on user experience`n`n" +
+"## Known Issues`n" +
+"Any known issues or limitations to be aware of.`n`n" +
+"## For Developers`n" +
+"Technical details for developers working with these APIs:`n" +
+"- API changes`n" +
+"- Breaking changes`n" +
+"- New capabilities`n" +
+"- Sample code or documentation links (if applicable)`n`n" +
+"## What's Next`n" +
+"Tease upcoming work or features in development (be cautious about commitments).`n`n" +
+"---`n" +
+"**Note:** These features are available to Windows Insiders in [specify builds/rings if known].`n`n" +
+"Guidelines:`n" +
+"- Use clear, user-friendly language`n" +
+"- Focus on user impact, not implementation details`n" +
+"- Group related changes together`n" +
+"- Use active voice`n" +
+"- Keep it concise but informative`n" +
+"- Avoid internal jargon or code names`n`n" +
+"Save this to '$OutputDir\insider-release-notes-$timestamp.md'"
 
 Write-Host $prompt4 -ForegroundColor White
 Write-Host "---COPILOT PROMPT END---" -ForegroundColor DarkGray
