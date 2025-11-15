@@ -1,0 +1,25 @@
+# Test output directory
+test-output/
+
+# PowerShell temporary files
+*.ps1xml
+
+# Environment-specific files
+.env
+.env.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.log
