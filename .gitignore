@@ -1,0 +1,18 @@
+# Output directory - generated files from running scripts
+output/*.json
+output/*.md
+
+# Keep example files in examples directory
+!examples/*.json
+!examples/*.md
+
+# PowerShell temporary files
+*.ps1~
+
+# IDE files
+.vscode/
+.vs/
+
+# OS files
+.DS_Store
+Thumbs.db

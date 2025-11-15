@@ -1,0 +1,68 @@
+{
+  "iterationName": "2025.09 Sprint 3",
+  "iterationPath": "OS\\ft_buses\\2025.09 Sprint 3",
+  "startDate": "2025-08-25T00:00:00Z",
+  "endDate": "2025-09-15T23:59:59Z",
+  "workItems": [
+    {
+      "id": 12345678,
+      "title": "Implement USB4 power management improvements",
+      "type": "User Story",
+      "state": "Closed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "iterationPath": null,
+      "closedDate": "2025-09-10T15:30:00Z",
+      "rank": "1000000",
+      "parentId": 12345600,
+      "parentRank": "500000"
+    },
+    {
+      "id": 12345679,
+      "title": "Fix sensor fusion crash in multi-monitor scenarios",
+      "type": "Bug",
+      "state": "Closed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Sensors",
+      "iterationPath": "OS\\ft_buses\\2025.08 Sprint 2",
+      "closedDate": "2025-09-12T10:15:00Z",
+      "rank": "2000000",
+      "parentId": null,
+      "parentRank": null
+    },
+    {
+      "id": 12345680,
+      "title": "Add HID-over-I2C error recovery",
+      "type": "User Story",
+      "state": "Closed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "iterationPath": "OS\\ft_buses\\2025.09 Sprint 3",
+      "closedDate": "2025-09-14T16:45:00Z",
+      "rank": "800000",
+      "parentId": 12345601,
+      "parentRank": "600000"
+    },
+    {
+      "id": 12345681,
+      "title": "Implement USB4 telemetry improvements",
+      "type": "Task",
+      "state": "Closed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "iterationPath": null,
+      "closedDate": "2025-09-11T14:20:00Z",
+      "rank": "1500000",
+      "parentId": 12345678,
+      "parentRank": "500000"
+    },
+    {
+      "id": 12345682,
+      "title": "Update sensor calibration algorithm",
+      "type": "User Story",
+      "state": "Closed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Sensors",
+      "iterationPath": null,
+      "closedDate": "2025-09-13T09:30:00Z",
+      "rank": "3000000",
+      "parentId": null,
+      "parentRank": null
+    }
+  ]
+}

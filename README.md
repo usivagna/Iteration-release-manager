@@ -1,13 +1,24 @@
-# Iteration Release Notes Generator
+# Iteration Release Manager
 
-Automated tool to generate iteration release notes and summaries for the Buses & Sensors team using GitHub Copilot with Azure DevOps MCP tools.
+Automated tools to manage iteration work items and generate release notes for the Buses & Sensors team using GitHub Copilot with Azure DevOps MCP tools.
 
 ## Overview
 
-This automation queries Azure DevOps for completed work items in a previous iteration, retrieves linked pull request details, and generates two types of documentation:
+This repository contains two automation scripts:
 
-1. **Internal Summary**: Technical summary for engineering managers
-2. **Windows Insider Release Notes**: User-friendly release notes for public consumption
+### 1. Release Notes Generator (`Generate-ReleaseNotes.ps1`)
+Queries Azure DevOps for completed work items in a previous iteration, retrieves linked pull request details, and generates two types of documentation:
+
+- **Internal Summary**: Technical summary for engineering managers
+- **Windows Insider Release Notes**: User-friendly release notes for public consumption
+
+### 2. Work Item Cleanup (`Cleanup-WorkItems.ps1`)
+Automates end-of-iteration work item maintenance to assist engineering managers:
+
+- **Assign Closed Items to Iterations**: If an item was closed within iteration dates, sets the iteration path to that iteration
+- **Sync Rank Fields**: Makes the rank field of child items match their parent item's rank
+
+See [CLEANUP-WORKITEMS.md](CLEANUP-WORKITEMS.md) for detailed documentation on the cleanup automation.
 
 ## Prerequisites
 
@@ -230,6 +241,24 @@ This automation leverages the following ADO MCP capabilities:
 - `mcp_ado_repo_get_pull_request_by_id` - Get PR details
 - `mcp_ado_repo_list_pull_requests_by_repo_or_project` - List PRs
 
+## Work Item Cleanup Automation
+
+In addition to generating release notes, this repository includes a cleanup automation script to maintain work item hygiene at the end of iterations.
+
+### Running the Cleanup Script
+
+```powershell
+.\Cleanup-WorkItems.ps1
+```
+
+The cleanup script will:
+1. Assign closed work items to the correct iteration based on their closed date
+2. Synchronize rank fields between parent and child work items
+
+⚠️ **Important**: This script modifies work items in Azure DevOps. Test with `.\Test-WorkItemCleanup.ps1` first.
+
+For complete documentation, see [CLEANUP-WORKITEMS.md](CLEANUP-WORKITEMS.md).
+
 ## Support and Feedback
 
 For issues or suggestions:
@@ -244,6 +273,6 @@ Internal use only for Microsoft teams.
 
 ---
 
-**Last Updated**: November 14, 2025
-**Version**: 1.0
+**Last Updated**: November 15, 2025
+**Version**: 1.1
 **Maintained by**: Your Team

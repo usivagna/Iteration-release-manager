@@ -1,0 +1,61 @@
+{
+  "timestamp": "2025-09-16_103045",
+  "iterationName": "2025.09 Sprint 3",
+  "iterationPath": "OS\\ft_buses\\2025.09 Sprint 3",
+  "totalWorkItems": 5,
+  "updatedWorkItems": 4,
+  "updates": [
+    {
+      "workItemId": 12345678,
+      "title": "Implement USB4 power management improvements",
+      "updatedFields": ["Iteration Path", "Rank"],
+      "changes": {
+        "iterationPath": {
+          "old": null,
+          "new": "OS\\ft_buses\\2025.09 Sprint 3"
+        },
+        "rank": {
+          "old": "1000000",
+          "new": "500000"
+        }
+      }
+    },
+    {
+      "workItemId": 12345679,
+      "title": "Fix sensor fusion crash in multi-monitor scenarios",
+      "updatedFields": ["Iteration Path"],
+      "changes": {
+        "iterationPath": {
+          "old": "OS\\ft_buses\\2025.08 Sprint 2",
+          "new": "OS\\ft_buses\\2025.09 Sprint 3"
+        }
+      }
+    },
+    {
+      "workItemId": 12345680,
+      "title": "Add HID-over-I2C error recovery",
+      "updatedFields": ["Rank"],
+      "changes": {
+        "rank": {
+          "old": "800000",
+          "new": "600000"
+        }
+      }
+    },
+    {
+      "workItemId": 12345681,
+      "title": "Implement USB4 telemetry improvements",
+      "updatedFields": ["Iteration Path", "Rank"],
+      "changes": {
+        "iterationPath": {
+          "old": null,
+          "new": "OS\\ft_buses\\2025.09 Sprint 3"
+        },
+        "rank": {
+          "old": "1500000",
+          "new": "500000"
+        }
+      }
+    }
+  ]
+}
