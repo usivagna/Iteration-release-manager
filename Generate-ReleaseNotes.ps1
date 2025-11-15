@@ -399,64 +399,166 @@ $internalSummaryPath = Join-Path $OutputDir "internal-summary-$timestamp.md"
 
 if ($UseAI) {
     $aiPrompt = @"
-Based on the provided Azure DevOps work item and pull request data, create a comprehensive internal iteration summary document for engineering managers.
+Based on the provided Azure DevOps work item and pull request data, create a structured technical progress report for engineering leadership.
 
-Target Audience: Engineering managers and technical leads
-Tone: Professional, technical, data-driven
+TARGET AUDIENCE: Engineering managers, technical leads, and leadership
+TONE: Professional, concise, engineering-focused with active voice
+PURPOSE: Progress report for iteration $($iterationInfo.iterationName)
 
-The document should include:
+REQUIRED STRUCTURE:
 
-# Iteration Summary: $($iterationInfo.iterationName)
+# [Main Component Areas in Parentheses]
+
+Start with a header that lists the main technical areas covered, e.g.:
+"Buses (Input, Low Power Buses, USB) & Windows Driver Frameworks (WDF)"
+
+Analyze the area paths in the work item data to determine the specific component areas.
+
+## Iteration $($iterationInfo.iterationName) Summary
 
 **Period:** $($iterationInfo.startDate) to $($iterationInfo.endDate)
-**Team:** $TeamName
-**Areas:** Buses & Sensors
 
-## Executive Summary
-- Total work items completed: [count from data]
-- Breakdown by type (User Story, Bug, Task, etc.)
-- Breakdown by area (Buses vs Sensors)
-- Key themes and focus areas derived from PR descriptions and work item titles
+### Overview
 
-## Completed Work Items
+Write ONE introductory paragraph (3-5 sentences) that summarizes:
+- Overall engagement scope and progress for this iteration
+- Total work items/PRs completed with breakdown by type
+- Major themes identified from the data (e.g., platform defects, partner collaboration, feature enablement, security hardening)
+- High-level impact on reliability, performance, or security
 
-For each area path (Buses and Sensors), organize work items and provide:
-- Work item ID and title
-- Technical description synthesized from work item description and PR descriptions
-- Key changes/implementations from the PRs (use PR titles and descriptions)
-- Notable technical achievements
-
-### Buses Component
-[Analyze work items with area path containing 'Buses']
-
-### Sensors Component
-[Analyze work items with area path containing 'Sensors']
-
-## Technical Highlights
-Based on PR descriptions and work item data:
-- Major features implemented (focus on User Stories/Features)
-- Critical bugs fixed (describe what was fixed using PR descriptions)
-- Infrastructure/tooling improvements
-- Technical debt addressed
-
-## Pull Request Summary
-- Total PRs merged: [count from data]
-- Most active repositories
-- Key changes by repository (synthesize from PR descriptions to provide meaningful insights)
-
-## Notes
-This summary was automatically generated from Azure DevOps work item and PR data.
+Example tone: "This iteration focused on [X] platform defects, [Y] partner engagements, and [Z] strategic initiatives. We completed [N] work items across USB, I3C, and WDF components, with emphasis on [major theme]. Key deliverables include [highlight 1-2 major items]."
 
 ---
-*Generated on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")*
 
-IMPORTANT: Use the actual PR descriptions and titles from the provided data to create meaningful, specific summaries. Focus on what was actually accomplished based on the PR descriptions.
+## Major Initiatives & Technical Progress
+
+For each significant technical initiative found in the PR data, create a subsection with:
+
+### [Initiative Name] (e.g., "DMA Support for UMDF Drivers", "I3C Platform Adoption", "Rust Integration for WDF")
+
+**Background & Context:**
+- Why this initiative matters (business/technical drivers)
+- Goals and expected outcomes
+- Any relevant standards, specifications, or partner dependencies
+
+**Current Iteration Progress:**
+- Specific technical actions completed (use PR descriptions)
+- Key implementations, discussions, or decisions made
+- Partnerships or collaborations (with OEMs, IHVs, or internal teams)
+- Technical challenges addressed
+
+**Next Steps:**
+- Ongoing investigations or follow-up work
+- Upcoming milestones or dependencies
+- Areas requiring attention
+
+ANALYZE THE PR DESCRIPTIONS to identify major initiatives. Look for:
+- Features spanning multiple PRs or work items
+- Strategic technical directions (new frameworks, security improvements, performance optimizations)
+- Partner-driven work (OEM/IHV engagements)
+- Platform improvements (test infrastructure, tooling, SDK updates)
+
+---
+
+## Technical Depth & Standards
+
+Throughout the document, include:
+- Specific technologies: USB ESS, eUSB2, USB4, I3C/I2C, Thunderbolt
+- Framework details: UMDF, KMDF, NetCx, WDF
+- Standards and compliance: WHCP, HLK, HIDI3C specifications
+- Architecture terms: DMA, IBI, power management (D-states), PCI-e
+- Security topics: UMA (usermode access), driver hardening, CFG
+
+Use technical acronyms and terminology appropriate for engineering leadership.
+
+---
+
+## Delivery Highlights
+
+Provide bulleted lists organized by category:
+
+### Features & Capabilities Delivered
+
+- [Feature name]: [Brief technical description and benefit]
+- Include work item IDs in parentheses for reference
+
+### Bug Fixes & Reliability Improvements
+
+- [Component]: [What was fixed and impact]
+- Mention Watson failures resolved, crash fixes, stability improvements
+
+### CD Releases & Bundles
+
+- List any continuous delivery releases, bugfix bundles, or feature rollouts
+- Include version numbers or build identifiers if available
+
+### Test Infrastructure & Quality
+
+- Test coverage improvements, HLK updates, validation framework enhancements
+- Mention specific test scenarios added
+
+### Partner Engagements
+
+- OEM/IHV collaborations, device certifications, issue resolutions
+- Workarounds provided for partner-reported issues
+
+---
+
+## Metrics Summary
+
+**Work Item Breakdown:**
+
+- Total completed: [N]
+- By type: [X] Bug fixes, [Y] Features, [Z] Tasks
+- By component: [breakdown by area path]
+
+**Pull Requests:**
+
+- Total merged: [N]
+- Repositories: [list key repos with counts]
+
+**Impact Areas:**
+
+- Reliability: [count of crash/stability fixes]
+- Security: [count of security-related work]
+- Performance: [count of optimization work]
+- Compliance: [count of certification/HLK work]
+
+---
+
+## Notes
+
+This is an engineering progress report generated from Azure DevOps data for iteration $($iterationInfo.iterationName).
+
+---
+
+**Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")** 
+
+CRITICAL INSTRUCTIONS:
+1. Analyze PR descriptions thoroughly to identify major technical initiatives
+2. Group related work items into coherent technical narratives
+3. Use active voice and emphasize impact (e.g., "Implemented X to improve Y by Z%")
+4. Include specific technical details, standards, and acronyms
+5. Structure should flow: Overview → Initiatives → Deliverables → Metrics
+6. Each initiative section should have Background → Progress → Next Steps
+7. Use engineering terminology appropriate for technical leadership
+8. Quantify improvements where possible (e.g., "resolved 15 Watson failures")
+
+MARKDOWN FORMATTING RULES:
+- Add blank line before and after ALL lists
+- Add blank line before and after ALL headings (except document title)
+- Use **bold** not *italic* for emphasis in footer
+- Escape square brackets in text with backslash if not links: \[text\]
+- End file with single newline character
 "@
 
     $aiSummary = Invoke-CopilotSummary -Prompt $aiPrompt -Data $workItemsData -OutputFile $internalSummaryPath
     
     if ($aiSummary) {
-        $aiSummary | Out-File $internalSummaryPath -Encoding utf8
+        $utf8WithBom = New-Object System.Text.UTF8Encoding $true
+        $writer = New-Object System.IO.StreamWriter($internalSummaryPath, $false, $utf8WithBom)
+        $writer.Write($aiSummary)
+        $writer.Close()
         Write-Host "Generated AI-powered internal summary: $internalSummaryPath" -ForegroundColor Green
     } else {
         Write-Host "Using enhanced template-based generation for internal summary" -ForegroundColor Yellow
@@ -587,7 +689,10 @@ Please review and enhance with additional context as needed.
 *Generated on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")*
 "@
 
-$internalSummary | Out-File $internalSummaryPath -Encoding utf8
+$utf8WithBom = New-Object System.Text.UTF8Encoding $true
+$writer = New-Object System.IO.StreamWriter($internalSummaryPath, $false, $utf8WithBom)
+$writer.Write($internalSummary)
+$writer.Close()
 Write-Host "Generated internal summary: $internalSummaryPath" -ForegroundColor Green
 }
 
@@ -599,75 +704,184 @@ Write-Host "Step 4: Generating Windows Insider release notes..." -ForegroundColo
 $insiderNotesPath = Join-Path $OutputDir "insider-release-notes-$timestamp.md"
 
 if ($UseAI) {
+    # Extract key themes and categories from PR descriptions dynamically
+    $workItemsWithPRs = $workItemsData.workItems | Where-Object { $_.pullRequests.Count -gt 0 }
+    
+    $bugCount = ($workItemsWithPRs | Where-Object { $_.workItemType -eq "Bug" }).Count
+    $taskCount = ($workItemsWithPRs | Where-Object { $_.workItemType -eq "Task" }).Count
+    $featureCount = ($workItemsWithPRs | Where-Object { $_.workItemType -in @("User Story", "Feature") }).Count
+    
+    # Extract common themes from PR descriptions
+    $themes = @()
+    foreach ($item in $workItemsWithPRs) {
+        foreach ($pr in $item.pullRequests) {
+            if ($pr.description) {
+                # Look for key improvement areas
+                if ($pr.description -match "(?i)(usb|connectivity|device)") { $themes += "USB/Device Connectivity" }
+                if ($pr.description -match "(?i)(i3c|sensor)") { $themes += "I3C/Sensors" }
+                if ($pr.description -match "(?i)(reliability|crash|failure|watson)") { $themes += "System Reliability" }
+                if ($pr.description -match "(?i)(security|uma|usermode)") { $themes += "Security" }
+                if ($pr.description -match "(?i)(performance|optimization|speed)") { $themes += "Performance" }
+                if ($pr.description -match "(?i)(telemetry|diagnostics|logging)") { $themes += "Diagnostics" }
+            }
+        }
+    }
+    $uniqueThemes = $themes | Select-Object -Unique | Select-Object -First 5
+    
     $aiPromptInsider = @"
-Based on the provided Azure DevOps work item and pull request data, create Windows Insider release notes.
+Based on the provided Azure DevOps work item and pull request data, create Windows Insider Blog-style release notes for EXTERNAL AUDIENCES.
 
-Target Audience: Windows Insiders (technical enthusiasts, developers, early adopters)
-Tone: Friendly, informative, technical but accessible
+DATA SUMMARY:
+- Total updates with code changes: $($workItemsWithPRs.Count)
+- Bug fixes: $bugCount
+- Improvements/Tasks: $taskCount
+- New features: $featureCount
+- Key improvement areas: $($uniqueThemes -join ", ")
 
-The document should include:
+TARGET AUDIENCE: External Windows Insiders (enthusiasts, IT professionals, early adopters) - NOT internal Microsoft engineers
+TONE: Friendly, professional, user-focused
+WORD LIMIT: 500 words maximum (excluding Developer section)
 
-# What's New in Buses & Sensors - $($iterationInfo.iterationName)
+ANALYSIS REQUIRED:
+1. Read through EVERY pull request description thoroughly
+2. Identify the actual technical changes made
+3. Translate those changes into user-facing benefits
+4. Group related improvements together
+5. Eliminate vague, repetitive statements like "general improvements"
 
-## Overview
-Write a brief, engaging introduction about what changed in this iteration for connectivity and sensors. Focus on user benefits derived from the PR descriptions.
+CRITICAL REQUIREMENTS FOR EXTERNAL AUDIENCE:
+❌ DO NOT include:
+- PR numbers, PR titles, or PR descriptions verbatim
+- File paths (e.g., "onecore\drivers\input\hid...")
+- Internal identifiers like "[Watson Failure]", "[UMA]", build numbers
+- Technical jargon without translation (A/V, telemetry, CFR, etc.)
+- Work item titles as written (simplify and humanize them)
+- Vague statements like "General improvements to system functionality" (be specific!)
+- Duplicate/repetitive bullet points
 
-## New Features
-For each User Story or Feature work item, describe in user-friendly language:
-- What the feature does (use FULL PR descriptions to be specific)
-- Why it matters to users
-- How it improves their experience
-- Include the "Why is this change being made?" and "What changed?" sections from PR descriptions
-Synthesize information from the PR descriptions to make features tangible and real.
+✅ DO include:
+- Specific plain language summaries with technical details translated to benefits
+- User impact explained: HOW will this improve their experience?
+- Real-world scenarios: video conferencing, battery life, security, etc.
+- Concrete examples of what changed
+- Work item IDs only in Developer section (format: #12345, #67890)
 
-## Improvements
-List improvements and enhancements from Tasks and other work items:
-- Performance improvements (cite specific PRs with details)
-- Reliability enhancements (cite specific PRs with details)
-- Better error handling
-- UX improvements
-Include substantial details from PR descriptions - what specifically improved, how it was tested.
+REQUIRED STRUCTURE:
 
-## Bug Fixes
-For Bug work items, describe fixes that users would care about:
-- What issue was affecting users (from work item description)
-- What's now fixed (include "Why is this change being made?" from PR)
-- Technical details of the fix (include "What changed?" from PR)
-- How it was tested (include "How was the change tested?" from PR)
-Include meaningful excerpts from PR descriptions to show the depth of the fix.
+# Hello Windows Insiders!
 
-## For Developers
-Technical details for developers working with these APIs:
-- API changes (derive from PR descriptions with specifics)
-- New capabilities (from PR descriptions with examples)
-- Breaking changes (if any mentioned in PRs)
-- Implementation details that matter
-List all work item IDs for reference.
+Brief welcome (1-2 sentences) mentioning the COUNT and SPECIFIC focus areas (e.g., "camera support, display brightness controls, and system security" not just "device connectivity").
+
+## 🚀 Overview
+
+Write ONE paragraph (3-4 sentences) that explains the theme of this release in plain language. Focus on user benefits and real-world scenarios.
+
+Then add "What's improved:" section with 3-4 specific bullet points. Each bullet should:
+- Start with a bold key area
+- Include the actual improvement/benefit
+- Be specific enough that users understand what changed
+
+EXAMPLE:
+**What's improved:**
+
+- **Enhanced camera support:** Better video quality through improved USB bandwidth handling for high-resolution cameras
+- **More reliable brightness controls:** Fixed intermittent issues where brightness hotkeys weren't recognized
+- **Better USB device connectivity:** Improved power management means fewer unexpected disconnections
+- **Stronger security:** Enhanced protections in hardware drivers to keep your system safe
+
+Analyze the PR descriptions and work item data to identify the REAL improvements - don't be generic.
+
+## 🔧 Improvements & Bug Fixes
+
+CRITICAL: Group improvements by category with subsection headers (###). For each category, provide 2-4 detailed bullet points that explain:
+1. WHAT changed (in plain language)
+2. WHY it matters to users (real-world benefit)
+3. HOW it improves their experience (concrete examples)
+
+Use this structure:
+### [Category Name]
+
+- **[Feature/Area]:** [Detailed description with user benefit]. [Explain the real-world impact or use case].
+
+CATEGORIES TO USE (analyze PR descriptions to determine which apply):
+- **Camera & USB Improvements:** For USB bandwidth, camera support, device enumeration, connectivity reliability
+- **Display & Brightness:** For monitor controls, brightness, display-related sensor improvements  
+- **Security Enhancements:** For UMA hardening, driver security, vulnerability fixes
+- **System Stability:** For crash fixes, error recovery, device reset capabilities
+- **Power Management:** For battery life, low-power states, idle behavior
+- **Performance:** For speed optimizations, reduced latency
+
+EXAMPLE OF GOOD DETAIL:
+❌ BAD: "Enhanced security to protect against potential vulnerabilities"
+✅ GOOD: "Updated user-mode hardware drivers with the latest security practices, adding additional validation to protect against potential exploits. This affects HID (Human Interface Device) and virtual function drivers."
+
+❌ BAD: "Improved device connectivity and reliability"
+✅ GOOD: "Added support for eUSB2v1 Double Isochronous Bandwidth, enabling built-in cameras to stream at higher resolutions and bandwidth. This particularly benefits video conferencing and content creation scenarios."
+
+TRANSLATE TECHNICAL TERMS:
+- "eUSB2v1 Double Isochronous Bandwidth" → "high-bandwidth camera support for better video quality"
+- "Watson Failure"/"A/V" → "system crash" or "stability issue"
+- "UMA usermode access" → "security hardening for drivers"
+- "telemetry" → "diagnostic capabilities" or "error reporting"
+- "I3C IBI DPC" → "sensor communication timing"
+- "PLDR/FLDR device reset" → "automatic device recovery without restarting your PC"
+- "Race condition" → "timing issue that occasionally caused..."
+
+## ⚠️ Known Issues (optional, only if relevant)
+
+Include only if there are known limitations users should be aware of. Format:
+- Brief description - Workaround or status
+
+## 👨‍💻 For Developers
+
+Brief intro (1 sentence): "This release includes updates across [areas]."
+
+Summary format (NO PR details, NO PR titles):
+- **[Category]:** X updates (#12345, #67890, #11111)
+- Example: "**Device Connectivity:** 5 updates (#48522963, #54529555, #56414704)"
+
+Add: "For detailed technical information, refer to the work items in Azure DevOps."
+
+## 📦 Availability
+
+Write 1-2 sentences about Dev/Canary channels and how to join at insider.windows.com.
+
+## 💬 Feedback
+
+Write 1-2 sentences about using Feedback Hub (Win + F) under appropriate category, with thank you message.
 
 ---
 
-**Note:** These features are available to Windows Insiders in the latest builds.
+**Generated: November 14, 2025 | Iteration: 2510 | Updates: $($workItemsWithPRs.Count)**
 
-For more information about the Windows Insider Program, visit [https://insider.windows.com](https://insider.windows.com)
+FINAL QUALITY CHECKS:
+✅ Have you analyzed PR descriptions to extract SPECIFIC improvements?
+✅ Have you eliminated ALL repetitive/duplicate statements?
+✅ Have you translated technical jargon into user benefits?
+✅ Have you grouped related improvements together with subsection headers (###)?
+✅ Does each bullet point explain WHAT changed, WHY it matters, and HOW it helps users?
+✅ Have you provided concrete examples and real-world scenarios?
+✅ Have you avoided vague statements like "general improvements"?
+✅ Is the content under 500 words (excluding Developer section)?
+✅ Have you added blank lines before and after ALL lists and headings?
+✅ Have you escaped square brackets in text that aren't links?
 
----
-*Generated on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")*
-
-CRITICAL REQUIREMENTS: 
-- Include substantial portions of PR descriptions (not just summaries)
-- PR descriptions contain "Why is this change being made?", "What changed?", and "How was the change tested?" - include these sections
-- Show the actual technical depth from the PRs - Windows Insiders appreciate detail
-- Each bug fix should include meaningful excerpts from the PR description
-- Don't oversimplify - Insiders want to understand what actually changed
-- Group related PRs together when describing features
-- Aim for 3-5 sentences minimum per work item, drawing from PR descriptions
+REMEMBER: 
+- This is for EXTERNAL audiences - no internal jargon, PR details, or file paths
+- Focus on USER IMPACT with specific details, not generic statements
+- Each improvement should be unique and meaningful
+- Translate technical changes into benefits users will notice
+- Developer section: Work item IDs only, no PR titles
 "@
 
     $aiNotesInsider = Invoke-CopilotSummary -Prompt $aiPromptInsider -Data $workItemsData -OutputFile $insiderNotesPath
     
     if ($aiNotesInsider) {
-        $aiNotesInsider | Out-File $insiderNotesPath -Encoding utf8
-        Write-Host "Generated AI-powered Windows Insider release notes: $insiderNotesPath" -ForegroundColor Green
+        $utf8WithBom = New-Object System.Text.UTF8Encoding $true
+        $writer = New-Object System.IO.StreamWriter($insiderNotesPath, $false, $utf8WithBom)
+        $writer.Write($aiNotesInsider)
+        $writer.Close()
+        Write-Host "Generated Windows Insider release notes: $insiderNotesPath" -ForegroundColor Green
     } else {
         Write-Host "Using enhanced template-based generation for Windows Insider notes" -ForegroundColor Yellow
         $UseAI = $false
@@ -675,148 +889,174 @@ CRITICAL REQUIREMENTS:
 }
 
 if (-not $UseAI) {
-    # Enhanced template-based generation with PR descriptions
-    # Filter to only include work items with PRs
+    # External-audience template - clean, user-focused
     $workItemsWithPRsInsider = $workItemsData.workItems | Where-Object { $_.pullRequests.Count -gt 0 }
     
+    # Helper function to create user-friendly summaries from PR descriptions
+    function Get-UserFriendlySummary {
+        param([string]$TechnicalDesc, [string]$Title)
+        
+        # Extract user-friendly explanation from PR description
+        if ($TechnicalDesc -match 'Why is this change being made\?(.+?)(?:##|$)') {
+            $why = $matches[1].Trim() -replace '<[^>]+>', '' -replace '\s+', ' '
+            # Translate technical jargon to plain language
+            $why = $why -replace '(?i)A/V', 'crash' -replace '(?i)telemetry', 'diagnostics' -replace '(?i)Watson', 'system failure' -replace '(?i)UMA', 'security vulnerability'
+            if ($why.Length -gt 150) { $why = $why.Substring(0, 147) + "..." }
+            return $why
+        }
+        
+        # Fallback based on title keywords
+        if ($Title -match '(?i)crash|failure|watson') { return "Resolved issues that could cause system instability" }
+        if ($Title -match '(?i)uma|security') { return "Enhanced security to protect against potential vulnerabilities" }
+        if ($Title -match '(?i)usb|connectivity|device') { return "Improved device connectivity and reliability" }
+        if ($Title -match '(?i)i3c|sensor') { return "Enhanced sensor performance and accuracy" }
+        if ($Title -match '(?i)power|battery|c-state') { return "Optimized power management for better battery life" }
+        if ($Title -match '(?i)performance|speed') { return "Improved system performance" }
+        return "General improvements to system functionality"
+    }
+    
+    # Categorize improvements by impact area
+    function Get-ImpactCategory {
+        param([string]$Title, [string]$Description)
+        $combined = "$Title $Description"
+        if ($combined -match '(?i)usb|connectivity|device|enumeration') { return 'Device Connectivity' }
+        if ($combined -match '(?i)i3c|sensor') { return 'Sensors & I3C' }
+        if ($combined -match '(?i)uma|security|vulnerability') { return 'Security' }
+        if ($combined -match '(?i)crash|failure|watson|reliability') { return 'System Reliability' }
+        if ($combined -match '(?i)power|battery|c-state|idle') { return 'Power Management' }
+        if ($combined -match '(?i)performance|speed|optimization') { return 'Performance' }
+        return 'General'
+    }
+    
+    # Group improvements by category
+    $categorized = @{}
+    foreach ($wi in $workItemsWithPRsInsider) {
+        $desc = if ($wi.pullRequests.Count -gt 0) { $wi.pullRequests[0].description } else { "" }
+        $category = Get-ImpactCategory -Title $wi.title -Description $desc
+        if (-not $categorized.ContainsKey($category)) {
+            $categorized[$category] = @()
+        }
+        $categorized[$category] += $wi
+    }
+    
+    # Get top 2-3 items per category (max 8 total for conciseness)
+    $selectedItems = @()
+    $categoryOrder = @('Device Connectivity', 'System Reliability', 'Security', 'Sensors & I3C', 'Power Management', 'Performance', 'General')
+    foreach ($cat in $categoryOrder) {
+        if ($categorized.ContainsKey($cat) -and $selectedItems.Count -lt 8) {
+            $selectedItems += $categorized[$cat] | Select-Object -First 2
+        }
+    }
+    
+    # Extract themes for overview
+    $themes = @{}
+    $themes['connectivity'] = ($workItemsWithPRsInsider | Where-Object { $_.title -match '(?i)usb|device|connectivity' }).Count
+    $themes['sensors'] = ($workItemsWithPRsInsider | Where-Object { $_.title -match '(?i)i3c|sensor' }).Count
+    $themes['security'] = ($workItemsWithPRsInsider | Where-Object { $_.title -match '(?i)uma|security' }).Count
+    $themes['reliability'] = ($workItemsWithPRsInsider | Where-Object { $_.title -match '(?i)watson|crash|failure|reliability' }).Count
+    
+    $topThemes = $themes.GetEnumerator() | Sort-Object Value -Descending | Where-Object { $_.Value -gt 0 } | Select-Object -First 3 | ForEach-Object { 
+        switch ($_.Key) {
+            'connectivity' { 'device connectivity' }
+            'sensors' { 'sensor performance' }
+            'security' { 'security' }
+            'reliability' { 'system reliability' }
+        }
+    }
+    
 $insiderNotes = @"
-# What's New in Buses & Sensors - $($iterationInfo.iterationName)
+# Hello Windows Insiders!
 
-## Overview
+We're excited to share **$($workItemsWithPRsInsider.Count) improvements** to Windows 11 Buses & Sensors, focusing on $($topThemes -join ', ') and performance.
 
-This release includes $($workItemsWithPRsInsider.Count) improvements to Windows connectivity and sensor capabilities, focusing on enhanced reliability, performance, and user experience.
+## $([System.Char]::ConvertFromUtf32(0x1F680)) Overview
 
-## New Features
+This release brings meaningful enhancements to how Windows handles device connectivity and sensors. Whether you're connecting USB devices, using modern sensors, or relying on system stability, these improvements work behind the scenes to make your experience more reliable and secure.
+
+**What's improved:**
+$(
+$overviewPoints = @()
+if ($themes['connectivity'] -gt 2) { $overviewPoints += "- Better USB and device connectivity with fewer connection issues" }
+if ($themes['sensors'] -gt 2) { $overviewPoints += "- Enhanced I3C sensor communication for improved accuracy" }
+if ($themes['security'] -gt 2) { $overviewPoints += "- Stronger security protections for driver components" }
+if ($themes['reliability'] -gt 2) { $overviewPoints += "- Resolved critical issues affecting system stability" }
+if ($overviewPoints.Count -eq 0) { $overviewPoints += "- General improvements to connectivity, performance, and reliability" }
+$overviewPoints[0..2] -join "`n"
+)
+
+## $([System.Char]::ConvertFromUtf32(0x1F527)) Improvements & Bug Fixes
 
 $(
-$features = $workItemsWithPRsInsider | Where-Object { $_.type -in @('User Story', 'Feature') }
-if ($features) {
-    ($features | ForEach-Object {
-        $wi = $_
-        $title = $wi.title
-        $desc = if ($wi.description) { 
-            # Strip HTML tags and get first few sentences
-            $cleanDesc = $wi.description -replace '<[^>]+>', '' -replace '\s+', ' '
-            if ($cleanDesc.Length -gt 200) {
-                $cleanDesc.Substring(0, 197) + "..."
-            } else {
-                $cleanDesc
-            }
-        } else { 
-            "Enhanced functionality in the connectivity platform." 
-        }
-        # Include PR descriptions for more context
-        $prContext = if ($wi.pullRequests.Count -gt 0) {
-            "`n`n**Technical implementation:**"
-            ($wi.pullRequests | ForEach-Object {
-                $prDesc = if ($_.description) {
-                    $cleanPrDesc = $_.description -replace '<[^>]+>', '' -replace '\s+', ' '
-                    if ($cleanPrDesc.Length -gt 300) {
-                        $cleanPrDesc.Substring(0, 297) + "..."
-                    } else {
-                        $cleanPrDesc
-                    }
-                } else {
-                    $_.title
-                }
-                "`n- $prDesc"
-            }) -join ""
-        } else {
-            ""
-        }
+$bulletPoints = @()
+foreach ($wi in $selectedItems) {
+    $benefit = Get-UserFriendlySummary -TechnicalDesc ($wi.pullRequests[0].description) -Title $wi.title
+    $category = Get-ImpactCategory -Title $wi.title -Description ($wi.pullRequests[0].description)
+    $bulletPoints += "- **${category}:** $benefit"
+}
+if ($bulletPoints.Count -eq 0) {
+    "- General reliability and performance improvements across connectivity components"
+} else {
+    $bulletPoints[0..7] -join "`n"
+}
+)
+
+$(
+# Add known issues section only if there are active issues to report
+$knownIssues = @()
+# You can populate this from work items tagged as "Known Issue" or similar
+if ($knownIssues.Count -gt 0) {
 @"
-### $title
 
-$desc$prContext
+## $([System.Char]::ConvertFromUtf32(0x26A0))$([System.Char]::ConvertFromUtf32(0xFE0F)) Known Issues
 
+$(($knownIssues | ForEach-Object { "- $_" }) -join "`n")
 "@
-    }) -join "`n"
-} else {
-    "No new features with PRs in this release."
-}
+} else { "" }
 )
 
-## Improvements
+## $([System.Char]::ConvertFromUtf32(0x1F468))$([System.Char]::ConvertFromUtf32(0x200D))$([System.Char]::ConvertFromUtf32(0x1F4BB)) For Developers
+
+This release includes updates across USB, I3C, and driver framework components. Key areas of change:
 
 $(
-$tasks = $workItemsWithPRsInsider | Where-Object { $_.type -eq 'Task' }
-if ($tasks) {
-    ($tasks | ForEach-Object { "- $($_.title)" }) -join "`n"
+$devCategories = $categorized.Keys | Where-Object { $_ -ne 'General' } | Sort-Object
+$devSummary = @()
+foreach ($cat in $devCategories) {
+    $count = $categorized[$cat].Count
+    if ($count -gt 0) {
+        $workItemIds = ($categorized[$cat] | Select-Object -First 3 | ForEach-Object { "#$($_.id)" }) -join ", "
+        $plural = if ($count -gt 1) { 's' } else { '' }
+        $extra = if ($categorized[$cat].Count -gt 3) { ', ...' } else { '' }
+        $devSummary += "- **${cat}:** $count update$plural ($workItemIds$extra)"
+    }
+}
+if ($devSummary.Count -eq 0) {
+    "- Multiple updates across connectivity and sensor components"
 } else {
-    "- No tasks with PRs in this release"
+    $devSummary -join "`n"
 }
 )
 
-## Bug Fixes
-
-$(
-$bugs = $workItemsWithPRsInsider | Where-Object { $_.type -eq 'Bug' }
-if ($bugs) {
-    ($bugs | ForEach-Object {
-        $wi = $_
-        $title = $wi.title
-        $desc = if ($wi.description) {
-            $cleanDesc = $wi.description -replace '<[^>]+>', '' -replace '\s+', ' '
-            if ($cleanDesc.Length -gt 150) {
-                $cleanDesc.Substring(0, 147) + "..."
-            } else {
-                $cleanDesc
-            }
-        } else {
-            "Resolved an issue affecting system reliability."
-        }
-        # Include PR fix descriptions
-        $prFixes = if ($wi.pullRequests.Count -gt 0) {
-            "`n`n**Fix details:**"
-            ($wi.pullRequests | ForEach-Object {
-                $fixDesc = if ($_.description) {
-                    $cleanFixDesc = $_.description -replace '<[^>]+>', '' -replace '\s+', ' '
-                    if ($cleanFixDesc.Length -gt 500) {
-                        $cleanFixDesc.Substring(0, 497) + "..."
-                    } else {
-                        $cleanFixDesc
-                    }
-                } else {
-                    $_.title
-                }
-                "`n- $fixDesc"
-            }) -join ""
-        } else {
-            ""
-        }
-@"
-### $title
-
-$desc$prFixes
-
-"@
-    }) -join "`n"
-} else {
-    "No major bug fixes with PRs in this release."
-}
-)
-
-## For Developers
-
-### API Changes
-
-Please review the work items and pull requests for detailed information about any API changes or new capabilities.
-
-### Work Items Included
-
-$(($workItemsWithPRsInsider | ForEach-Object { "- Work Item $($_.id): $($_.title)" }) -join "`n")
+For detailed technical information, refer to the work items listed above in Azure DevOps.
 
 ---
 
-**Note:** These features are available to Windows Insiders in the latest builds.
+## $([System.Char]::ConvertFromUtf32(0x1F4E6)) Availability
 
-For more information about the Windows Insider Program, visit [https://insider.windows.com](https://insider.windows.com)
+These improvements are available to Windows Insiders in the **Dev** and **Canary** Channels. Join at [insider.windows.com](https://insider.windows.com) and check **Settings > Windows Update**.
+
+## $([System.Char]::ConvertFromUtf32(0x1F4AC)) Feedback
+
+Use **Feedback Hub** (Win + F) under **Hardware, Devices, and Drivers** to report issues or suggestions. Thank you for being a Windows Insider! $([System.Char]::ConvertFromUtf32(0x1F389))
 
 ---
-*Generated on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")*
+*Generated: $(Get-Date -Format "MMMM dd, yyyy") | Iteration: $($iterationInfo.iterationName) | Updates: $($workItemsWithPRsInsider.Count)*
 "@
 
-$insiderNotes | Out-File $insiderNotesPath -Encoding utf8
+$utf8WithBom = New-Object System.Text.UTF8Encoding $true
+$writer = New-Object System.IO.StreamWriter($insiderNotesPath, $false, $utf8WithBom)
+$writer.Write($insiderNotes)
+$writer.Close()
 Write-Host "Generated Windows Insider release notes: $insiderNotesPath" -ForegroundColor Green
 }
 
