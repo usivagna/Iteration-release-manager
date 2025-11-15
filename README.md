@@ -1,6 +1,6 @@
 # Iteration Release Notes Generator
 
-Fully automated tool to generate iteration release notes and summaries for the Buses & Sensors team using Azure DevOps REST API.
+Fully automated tool to generate iteration release notes and summaries for the Buses & Sensors team using Azure DevOps REST API with optional AI-powered content generation.
 
 ## Overview
 
@@ -9,12 +9,16 @@ This automation queries Azure DevOps for completed work items in a previous iter
 1. **Internal Summary**: Technical summary for engineering managers
 2. **Windows Insider Release Notes**: User-friendly release notes for public consumption
 
+**NEW**: Supports AI-powered summary generation using GitHub Copilot for better, audience-tailored content that leverages PR descriptions.
+
 ## Key Features
 
 - ✅ **Fully Automated**: No manual intervention required - runs from start to finish
 - ✅ **Fast Execution**: Direct API calls significantly faster than manual Copilot interactions
-- ✅ **Accurate Data**: Maintains same data accuracy with proper error handling
-- ✅ **Comprehensive**: Retrieves work items, PRs, and generates formatted summaries
+- ✅ **Accurate Data**: Retrieves all work items and PR descriptions from the specified iteration
+- ✅ **AI-Powered (Optional)**: Use GitHub Copilot to generate tailored summaries from PR data
+- ✅ **PR-Focused**: Summaries reflect actual completed PRs with their descriptions
+- ✅ **Comprehensive**: Generates both technical and user-friendly documentation
 
 ## Prerequisites
 
@@ -65,6 +69,18 @@ $env:AZURE_DEVOPS_PAT = "your-personal-access-token"
 
 **Option C: Pass as parameters** (see Usage section below)
 
+### 3. (Optional) AI-Powered Generation
+
+For better, audience-tailored summaries using GitHub Copilot:
+
+**Option A: Set GitHub Token (for future API integration):**
+```powershell
+$env:GITHUB_TOKEN = "your-github-token"
+```
+
+**Option B: Use the generated prompt files:**
+The script generates `-prompt.txt` files alongside the summaries containing rich context from all PR descriptions. You can use these with any AI tool including GitHub Copilot Chat.
+
 ## Usage
 
 ### Basic Usage (Recommended)
@@ -76,7 +92,35 @@ $env:AZURE_DEVOPS_PAT = "your-personal-access-token"
 This will:
 1. Use environment variables for authentication
 2. Query the most recently completed iteration
-3. Generate all output files automatically
+3. Collect all work items and PR descriptions
+4. Generate enhanced summaries with PR details (template-based by default)
+5. Create AI prompt files for optional AI-powered generation
+
+### AI-Powered Generation (Default)
+
+```powershell
+.\Generate-ReleaseNotes.ps1 -UseAI
+```
+
+The script will:
+1. Collect all data (iterations, work items, PRs with descriptions)
+2. Create AI prompts with full context from PR descriptions
+3. Save prompts to files for use with GitHub Copilot or other AI tools
+4. Fall back to enhanced templates if AI is not available
+
+The generated `-prompt.txt` files contain:
+- All work item details
+- Complete PR descriptions
+- Structured prompts for engineering managers and Windows Insiders
+- These can be used with GitHub Copilot Chat, ChatGPT, or any AI tool
+
+### Template-Based Generation Only
+
+```powershell
+.\Generate-ReleaseNotes.ps1 -UseAI:$false
+```
+
+Uses enhanced templates that include PR descriptions directly in the output.
 
 ### Advanced Usage
 

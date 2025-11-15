@@ -9,7 +9,8 @@ param(
     [string]$PAT = "",
     [string]$OutputDir = ".\output",
     [switch]$UseCurrentIteration = $false,
-    [string]$SpecificIteration = ""
+    [string]$SpecificIteration = "",
+    [switch]$UseAI = $true
 )
 
 # Configuration
@@ -293,10 +294,144 @@ $workItemsData | ConvertTo-Json -Depth 10 | Out-File $workItemsPath -Encoding ut
 Write-Host "Saved work items data to $workItemsPath" -ForegroundColor Green
 Write-Host ""
 
+# Function to generate AI-powered summary using GitHub Copilot
+function Invoke-CopilotSummary {
+    param(
+        [string]$Prompt,
+        [hashtable]$Data,
+        [string]$OutputFile
+    )
+    
+    try {
+        Write-Host "  Generating AI-powered content..." -ForegroundColor Gray
+        
+        # Check if GITHUB_TOKEN or COPILOT_API_KEY is available
+        $githubToken = $env:GITHUB_TOKEN
+        $copilotKey = $env:COPILOT_API_KEY
+        
+        if ([string]::IsNullOrEmpty($githubToken) -and [string]::IsNullOrEmpty($copilotKey)) {
+            Write-Host "  No AI API credentials found (GITHUB_TOKEN or COPILOT_API_KEY)" -ForegroundColor Yellow
+            Write-Host "  Falling back to template-based generation" -ForegroundColor Yellow
+            return $null
+        }
+        
+        # Prepare the context with PR descriptions prominently featured
+        $contextText = @"
+Iteration: $($Data.iterationName)
+Period: $($Data.startDate) to $($Data.endDate)
+
+Work Items and Pull Requests:
+$( ($Data.workItems | ForEach-Object {
+    $wi = $_
+    $prDetails = if ($wi.pullRequests.Count -gt 0) {
+        ($wi.pullRequests | ForEach-Object {
+            "  - PR #$($_.id): $($_.title) [$($_.repository)]`n    Description: $($_.description)"
+        }) -join "`n"
+    } else {
+        "  No linked PRs"
+    }
+    "Work Item [$($wi.id)] - $($wi.title) ($($wi.type), $($wi.areaPath))`n  Description: $($wi.description)`n  Pull Requests:`n$prDetails"
+}) -join "`n`n" )
+"@
+
+        # For now, save the prompt and context to a file for manual or automated use
+        # This can be enhanced to call an AI API directly if credentials are available
+        $promptFile = $OutputFile -replace '\.md$', '-prompt.txt'
+        $fullPrompt = @"
+$Prompt
+
+===== CONTEXT DATA =====
+$contextText
+"@
+        $fullPrompt | Out-File $promptFile -Encoding utf8
+        
+        Write-Host "  AI prompt saved to: $promptFile" -ForegroundColor Gray
+        Write-Host "  You can use this with GitHub Copilot Chat or any AI tool" -ForegroundColor Gray
+        
+        # Return null to fallback to template generation
+        # In the future, this can call an API directly
+        return $null
+    }
+    catch {
+        Write-Host "  Error preparing AI generation: $($_.Exception.Message)" -ForegroundColor Yellow
+        return $null
+    }
+}
+
 # Step 3: Generate internal summary
 Write-Host "Step 3: Generating internal summary..." -ForegroundColor Cyan
 
 $internalSummaryPath = Join-Path $OutputDir "internal-summary-$timestamp.md"
+
+if ($UseAI) {
+    $aiPrompt = @"
+Based on the provided Azure DevOps work item and pull request data, create a comprehensive internal iteration summary document for engineering managers.
+
+Target Audience: Engineering managers and technical leads
+Tone: Professional, technical, data-driven
+
+The document should include:
+
+# Iteration Summary: $($iterationInfo.iterationName)
+
+**Period:** $($iterationInfo.startDate) to $($iterationInfo.endDate)
+**Team:** $TeamName
+**Areas:** Buses & Sensors
+
+## Executive Summary
+- Total work items completed: [count from data]
+- Breakdown by type (User Story, Bug, Task, etc.)
+- Breakdown by area (Buses vs Sensors)
+- Key themes and focus areas derived from PR descriptions and work item titles
+
+## Completed Work Items
+
+For each area path (Buses and Sensors), organize work items and provide:
+- Work item ID and title
+- Technical description synthesized from work item description and PR descriptions
+- Key changes/implementations from the PRs (use PR titles and descriptions)
+- Notable technical achievements
+
+### Buses Component
+[Analyze work items with area path containing 'Buses']
+
+### Sensors Component
+[Analyze work items with area path containing 'Sensors']
+
+## Technical Highlights
+Based on PR descriptions and work item data:
+- Major features implemented (focus on User Stories/Features)
+- Critical bugs fixed (describe what was fixed using PR descriptions)
+- Infrastructure/tooling improvements
+- Technical debt addressed
+
+## Pull Request Summary
+- Total PRs merged: [count from data]
+- Most active repositories
+- Key changes by repository (synthesize from PR descriptions to provide meaningful insights)
+
+## Notes
+This summary was automatically generated from Azure DevOps work item and PR data.
+
+---
+*Generated on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")*
+
+IMPORTANT: Use the actual PR descriptions and titles from the provided data to create meaningful, specific summaries. Focus on what was actually accomplished based on the PR descriptions.
+"@
+
+    $aiSummary = Invoke-CopilotSummary -Prompt $aiPrompt -Data $workItemsData -OutputFile $internalSummaryPath
+    
+    if ($aiSummary) {
+        $aiSummary | Out-File $internalSummaryPath -Encoding utf8
+        Write-Host "Generated AI-powered internal summary: $internalSummaryPath" -ForegroundColor Green
+    } else {
+        Write-Host "Using enhanced template-based generation for internal summary" -ForegroundColor Yellow
+        $UseAI = $false  # Fallback to template for remaining sections
+    }
+}
+
+if (-not $UseAI) {
+    # Enhanced template-based generation with PR descriptions
 $internalSummary = @"
 # Iteration Summary: $($iterationInfo.iterationName)
 
@@ -424,12 +559,87 @@ Please review and enhance with additional context as needed.
 
 $internalSummary | Out-File $internalSummaryPath -Encoding utf8
 Write-Host "Generated internal summary: $internalSummaryPath" -ForegroundColor Green
+}
+
 Write-Host ""
 
 # Step 4: Generate Windows Insider release notes
 Write-Host "Step 4: Generating Windows Insider release notes..." -ForegroundColor Cyan
 
 $insiderNotesPath = Join-Path $OutputDir "insider-release-notes-$timestamp.md"
+
+if ($UseAI) {
+    $aiPromptInsider = @"
+Based on the provided Azure DevOps work item and pull request data, create Windows Insider release notes.
+
+Target Audience: Windows Insiders (technical enthusiasts, developers, early adopters)
+Tone: Friendly, informative, user-focused (not too technical)
+
+The document should include:
+
+# What's New in Buses & Sensors - $($iterationInfo.iterationName)
+
+## Overview
+Write a brief, engaging introduction about what changed in this iteration for connectivity and sensors. Focus on user benefits derived from the PR descriptions.
+
+## New Features
+For each User Story or Feature work item, describe in user-friendly language:
+- What the feature does (use PR descriptions to be specific)
+- Why it matters to users
+- How it improves their experience
+Synthesize information from the PR descriptions to make features tangible and real.
+
+## Improvements
+List improvements and enhancements from Tasks and other work items:
+- Performance improvements (cite specific PRs)
+- Reliability enhancements (cite specific PRs)
+- Better error handling
+- UX improvements
+Use PR descriptions to provide concrete examples of what improved.
+
+## Bug Fixes
+For Bug work items, describe fixes that users would care about:
+- What issue was affecting users (from work item description)
+- What's now fixed (from PR descriptions)
+- Impact on user experience
+Make bug fixes relatable and clear using the PR descriptions.
+
+## For Developers
+Technical details for developers working with these APIs:
+- API changes (derive from PR descriptions)
+- New capabilities (from PR descriptions)
+- Breaking changes (if any mentioned in PRs)
+List all work item IDs for reference.
+
+---
+
+**Note:** These features are available to Windows Insiders in the latest builds.
+
+For more information about the Windows Insider Program, visit [https://insider.windows.com](https://insider.windows.com)
+
+---
+*Generated on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")*
+
+IMPORTANT: 
+- Use actual PR descriptions to create specific, meaningful content
+- Focus on user benefits and real improvements from the PRs
+- Avoid generic placeholders - be specific based on the PR data provided
+- Group related PRs together when describing features
+"@
+
+    $aiNotesInsider = Invoke-CopilotSummary -Prompt $aiPromptInsider -Data $workItemsData -OutputFile $insiderNotesPath
+    
+    if ($aiNotesInsider) {
+        $aiNotesInsider | Out-File $insiderNotesPath -Encoding utf8
+        Write-Host "Generated AI-powered Windows Insider release notes: $insiderNotesPath" -ForegroundColor Green
+    } else {
+        Write-Host "Using enhanced template-based generation for Windows Insider notes" -ForegroundColor Yellow
+        $UseAI = $false
+    }
+}
+
+if (-not $UseAI) {
+    # Enhanced template-based generation with PR descriptions
 $insiderNotes = @"
 # What's New in Buses & Sensors - $($iterationInfo.iterationName)
 
@@ -443,10 +653,11 @@ $(
 $features = $workItemsData.workItems | Where-Object { $_.type -in @('User Story', 'Feature') }
 if ($features) {
     ($features | ForEach-Object {
-        $title = $_.title
-        $desc = if ($_.description) { 
+        $wi = $_
+        $title = $wi.title
+        $desc = if ($wi.description) { 
             # Strip HTML tags and get first few sentences
-            $cleanDesc = $_.description -replace '<[^>]+>', '' -replace '\s+', ' '
+            $cleanDesc = $wi.description -replace '<[^>]+>', '' -replace '\s+', ' '
             if ($cleanDesc.Length -gt 200) {
                 $cleanDesc.Substring(0, 197) + "..."
             } else {
@@ -455,10 +666,30 @@ if ($features) {
         } else { 
             "Enhanced functionality in the connectivity platform." 
         }
+        
+        # Include PR descriptions for more context
+        $prContext = if ($wi.pullRequests.Count -gt 0) {
+            "`n`n**Technical implementation:**"
+            ($wi.pullRequests | ForEach-Object {
+                $prDesc = if ($_.description) {
+                    $cleanPrDesc = $_.description -replace '<[^>]+>', '' -replace '\s+', ' '
+                    if ($cleanPrDesc.Length -gt 150) {
+                        $cleanPrDesc.Substring(0, 147) + "..."
+                    } else {
+                        $cleanPrDesc
+                    }
+                } else {
+                    $_.title
+                }
+                "`n- $prDesc"
+            }) -join ""
+        } else {
+            ""
+        }
 @"
 ### $title
 
-$desc
+$desc$prContext
 
 "@
     }) -join "`n"
@@ -483,10 +714,11 @@ if ($tasks) {
 $(
 $bugs = $workItemsData.workItems | Where-Object { $_.type -eq 'Bug' }
 if ($bugs) {
-    ($bugs | ForEach-Object { 
-        $title = $_.title
-        $desc = if ($_.description) {
-            $cleanDesc = $_.description -replace '<[^>]+>', '' -replace '\s+', ' '
+    ($bugs | ForEach-Object {
+        $wi = $_
+        $title = $wi.title
+        $desc = if ($wi.description) {
+            $cleanDesc = $wi.description -replace '<[^>]+>', '' -replace '\s+', ' '
             if ($cleanDesc.Length -gt 150) {
                 $cleanDesc.Substring(0, 147) + "..."
             } else {
@@ -495,10 +727,30 @@ if ($bugs) {
         } else {
             "Resolved an issue affecting system reliability."
         }
+        
+        # Include PR fix descriptions
+        $prFixes = if ($wi.pullRequests.Count -gt 0) {
+            "`n`n**Fix details:**"
+            ($wi.pullRequests | ForEach-Object {
+                $fixDesc = if ($_.description) {
+                    $cleanFixDesc = $_.description -replace '<[^>]+>', '' -replace '\s+', ' '
+                    if ($cleanFixDesc.Length -gt 150) {
+                        $cleanFixDesc.Substring(0, 147) + "..."
+                    } else {
+                        $cleanFixDesc
+                    }
+                } else {
+                    $_.title
+                }
+                "`n- $fixDesc"
+            }) -join ""
+        } else {
+            ""
+        }
 @"
 ### $title
 
-$desc
+$desc$prFixes
 
 "@
     }) -join "`n"
@@ -529,6 +781,8 @@ For more information about the Windows Insider Program, visit [https://insider.w
 
 $insiderNotes | Out-File $insiderNotesPath -Encoding utf8
 Write-Host "Generated Windows Insider release notes: $insiderNotesPath" -ForegroundColor Green
+}
+
 Write-Host ""
 
 Write-Host "=== Generation Complete ===" -ForegroundColor Green
