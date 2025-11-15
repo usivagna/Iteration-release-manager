@@ -1,6 +1,6 @@
-# Generate-ReleaseNotes.ps1
+# Generate-ReleaseNotes-Automated.ps1
 # Fully automated script to generate iteration release notes for Buses team
-# Uses Azure DevOps REST API to query work items and generate summaries
+# Uses Azure DevOps REST API directly to query work items and generate summaries
 
 param(
     [string]$ProjectName = "OS",
@@ -9,7 +9,8 @@ param(
     [string]$PAT = "",
     [string]$OutputDir = ".\output",
     [switch]$UseCurrentIteration = $false,
-    [string]$SpecificIteration = ""
+    [string]$SpecificIteration = "",
+    [switch]$TestMode = $false
 )
 
 # Configuration
@@ -17,6 +18,9 @@ $AreaPaths = @(
     "OS\Core\Connectivity Platform\Buses",
     "OS\Core\Connectivity Platform\Sensors"
 )
+
+# Import required modules
+Add-Type -AssemblyName System.Net.Http
 
 Write-Host "=== Automated Iteration Release Notes Generator ===" -ForegroundColor Cyan
 Write-Host "Project: $ProjectName" -ForegroundColor Yellow
@@ -286,9 +290,10 @@ $workItemsData | ConvertTo-Json -Depth 10 | Out-File $workItemsPath -Encoding ut
 Write-Host "Saved work items data to $workItemsPath" -ForegroundColor Green
 Write-Host ""
 
-# Step 3: Generate internal summary
+# Step 3 & 4: Generate summaries using GitHub Copilot CLI (if available) or templates
 Write-Host "Step 3: Generating internal summary..." -ForegroundColor Cyan
 
+# Create internal summary
 $internalSummaryPath = Join-Path $OutputDir "internal-summary-$timestamp.md"
 $internalSummary = @"
 # Iteration Summary: $($iterationInfo.iterationName)
