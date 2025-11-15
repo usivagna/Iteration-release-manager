@@ -603,7 +603,7 @@ if ($UseAI) {
 Based on the provided Azure DevOps work item and pull request data, create Windows Insider release notes.
 
 Target Audience: Windows Insiders (technical enthusiasts, developers, early adopters)
-Tone: Friendly, informative, user-focused (not too technical)
+Tone: Friendly, informative, technical but accessible
 
 The document should include:
 
@@ -614,31 +614,34 @@ Write a brief, engaging introduction about what changed in this iteration for co
 
 ## New Features
 For each User Story or Feature work item, describe in user-friendly language:
-- What the feature does (use PR descriptions to be specific)
+- What the feature does (use FULL PR descriptions to be specific)
 - Why it matters to users
 - How it improves their experience
+- Include the "Why is this change being made?" and "What changed?" sections from PR descriptions
 Synthesize information from the PR descriptions to make features tangible and real.
 
 ## Improvements
 List improvements and enhancements from Tasks and other work items:
-- Performance improvements (cite specific PRs)
-- Reliability enhancements (cite specific PRs)
+- Performance improvements (cite specific PRs with details)
+- Reliability enhancements (cite specific PRs with details)
 - Better error handling
 - UX improvements
-Use PR descriptions to provide concrete examples of what improved.
+Include substantial details from PR descriptions - what specifically improved, how it was tested.
 
 ## Bug Fixes
 For Bug work items, describe fixes that users would care about:
 - What issue was affecting users (from work item description)
-- What's now fixed (from PR descriptions)
-- Impact on user experience
-Make bug fixes relatable and clear using the PR descriptions.
+- What's now fixed (include "Why is this change being made?" from PR)
+- Technical details of the fix (include "What changed?" from PR)
+- How it was tested (include "How was the change tested?" from PR)
+Include meaningful excerpts from PR descriptions to show the depth of the fix.
 
 ## For Developers
 Technical details for developers working with these APIs:
-- API changes (derive from PR descriptions)
-- New capabilities (from PR descriptions)
+- API changes (derive from PR descriptions with specifics)
+- New capabilities (from PR descriptions with examples)
 - Breaking changes (if any mentioned in PRs)
+- Implementation details that matter
 List all work item IDs for reference.
 
 ---
@@ -650,11 +653,14 @@ For more information about the Windows Insider Program, visit [https://insider.w
 ---
 *Generated on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")*
 
-IMPORTANT: 
-- Use actual PR descriptions to create specific, meaningful content
-- Focus on user benefits and real improvements from the PRs
-- Avoid generic placeholders - be specific based on the PR data provided
+CRITICAL REQUIREMENTS: 
+- Include substantial portions of PR descriptions (not just summaries)
+- PR descriptions contain "Why is this change being made?", "What changed?", and "How was the change tested?" - include these sections
+- Show the actual technical depth from the PRs - Windows Insiders appreciate detail
+- Each bug fix should include meaningful excerpts from the PR description
+- Don't oversimplify - Insiders want to understand what actually changed
 - Group related PRs together when describing features
+- Aim for 3-5 sentences minimum per work item, drawing from PR descriptions
 "@
 
     $aiNotesInsider = Invoke-CopilotSummary -Prompt $aiPromptInsider -Data $workItemsData -OutputFile $insiderNotesPath
@@ -705,8 +711,8 @@ if ($features) {
             ($wi.pullRequests | ForEach-Object {
                 $prDesc = if ($_.description) {
                     $cleanPrDesc = $_.description -replace '<[^>]+>', '' -replace '\s+', ' '
-                    if ($cleanPrDesc.Length -gt 150) {
-                        $cleanPrDesc.Substring(0, 147) + "..."
+                    if ($cleanPrDesc.Length -gt 300) {
+                        $cleanPrDesc.Substring(0, 297) + "..."
                     } else {
                         $cleanPrDesc
                     }
@@ -765,8 +771,8 @@ if ($bugs) {
             ($wi.pullRequests | ForEach-Object {
                 $fixDesc = if ($_.description) {
                     $cleanFixDesc = $_.description -replace '<[^>]+>', '' -replace '\s+', ' '
-                    if ($cleanFixDesc.Length -gt 150) {
-                        $cleanFixDesc.Substring(0, 147) + "..."
+                    if ($cleanFixDesc.Length -gt 500) {
+                        $cleanFixDesc.Substring(0, 497) + "..."
                     } else {
                         $cleanFixDesc
                     }
