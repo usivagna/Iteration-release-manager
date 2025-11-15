@@ -1,67 +1,444 @@
 {
-  "iterationName": "2025.09 Sprint 3",
-  "startDate": "2025-08-25T00:00:00Z",
-  "endDate": "2025-09-15T23:59:59Z",
+  "iterationName": "2510",
+  "startDate": "2025-09-29T00:00:00.000Z",
+  "endDate": "2025-11-02T00:00:00.000Z",
+  "summary": {
+    "totalWorkItemsInIteration": 177,
+    "completedWorkItemsRetrieved": 19,
+    "workItemsWithPRs": 11,
+    "workItemsWithoutPRs": 8,
+    "totalPullRequestsIdentified": 20,
+    "totalPullRequestsRetrieved": 19,
+    "inaccessiblePullRequests": 1,
+    "note": "All 19 completed work items from iteration 2510 have been processed. Full PR details extraction complete: 19 PRs retrieved, 1 PR inaccessible (ID 10288212)."
+  },
   "workItems": [
     {
-      "id": 12345678,
-      "title": "Implement USB4 power management improvements",
-      "type": "User Story",
-      "state": "Closed",
+      "id": 48522963,
+      "title": "!analyze - Bugcheck 0x15F - CONNECTED_STANDBY_WATCHDOG_TIMEOUT_LIVEDUMP - Blames USB4/Tunnel in Nickel and GE+CD branches",
+      "type": "Task",
+      "state": "Completed",
       "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
-      "description": "Add support for enhanced USB4 power states to improve battery life on mobile devices. This includes implementing D3cold transitions and coordinating with PCI power management.",
       "pullRequests": [
         {
-          "id": 1001,
-          "title": "Add USB4 D3cold power state transitions",
-          "description": "Implements USB4 router D3cold entry and exit sequences with proper coordination with PCIe link states. Includes telemetry for power state transitions and error handling for failed transitions.",
-          "repository": "os-client",
-          "sourceBranch": "users/johndoe/usb4-power",
-          "targetBranch": "main"
+          "pullRequestId": 10667522,
+          "title": "[USB4] Fix watchdog timeout for port that have connected under USB4",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/samgaz/usb4-1615f-fix",
+          "targetBranch": "refs/heads/official/rs_cplat_scon_dev",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/10667522",
+          "createdDate": "2024-04-16T17:48:35.683Z",
+          "closedDate": "2024-06-10T20:57:47.689Z",
+          "createdBy": "Samuel Gazala",
+          "mergeStrategy": "Squash",
+          "isDraft": false
         },
         {
-          "id": 1002,
-          "title": "Add power telemetry for USB4 routers",
-          "description": "Adds ETW events for USB4 power state changes to enable monitoring and debugging of power-related issues in the field.",
-          "repository": "os-client",
-          "sourceBranch": "users/johndoe/usb4-telemetry",
-          "targetBranch": "main"
+          "pullRequestId": 10922059,
+          "title": "[USB4] Backport to GE",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/murphyryan/usb4-backport-ge",
+          "targetBranch": "refs/heads/official/ge_release",
+          "status": "Abandoned",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/10922059",
+          "createdDate": "2024-06-03T22:38:48.652Z",
+          "closedDate": "2025-04-04T16:54:24.837Z",
+          "createdBy": "Murphy Ryan",
+          "mergeStrategy": null,
+          "isDraft": false
+        },
+        {
+          "pullRequestId": 10662061,
+          "title": "[USB4] USB4_FIRMWARE_PREFIX of \\??\\C is required and must not be omitted",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/samgaz/usb4-firmware-path-prefix",
+          "targetBranch": "refs/heads/official/rs_cplat_scon_dev",
+          "status": "Abandoned",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/10662061",
+          "createdDate": "2024-04-15T22:37:20.618Z",
+          "closedDate": "2024-04-25T17:08:49.039Z",
+          "createdBy": "Samuel Gazala",
+          "mergeStrategy": null,
+          "isDraft": true
+        },
+        {
+          "pullRequestId": 10946526,
+          "title": "[USB4] Fix for 0x15F to rs_base1_bpt3",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/murphyryan/usb4-fix-to-base1-bpt3",
+          "targetBranch": "refs/heads/official/rs_base1_bpt3",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/10946526",
+          "createdDate": "2024-06-10T16:24:04.536Z",
+          "closedDate": "2024-06-18T23:58:38.502Z",
+          "createdBy": "Murphy Ryan",
+          "mergeStrategy": "Squash",
+          "isDraft": false
+        },
+        {
+          "pullRequestId": 10139943,
+          "title": "[USB4] Fix for 0x15F to rs_cplat_scon_bcob",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/samgaz/usb4-15f-bcob",
+          "targetBranch": "refs/heads/official/rs_cplat_scon_bcob",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/10139943",
+          "createdDate": "2024-02-05T17:38:10.099Z",
+          "closedDate": "2024-02-12T23:38:18.556Z",
+          "createdBy": "Samuel Gazala",
+          "mergeStrategy": "Squash",
+          "isDraft": false
         }
       ]
     },
     {
-      "id": 12345679,
-      "title": "Fix sensor fusion crash in multi-monitor scenarios",
+      "id": 50979834,
+      "title": "Continue to drive down the volume of UMDF device driver failures to improve system reliability and performance",
+      "type": "Deliverable",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "pullRequests": []
+    },
+    {
+      "id": 56985893,
+      "title": "[USB][Camera] Productize eUSB2 Double-Isoch changes",
+      "type": "Task",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "pullRequests": [
+        {
+          "pullRequestId": 12940218,
+          "title": "[UCX] Bump to version 1.7",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/andryang/UCX-bump-17",
+          "targetBranch": "refs/heads/official/ge_current_directcplat_scon_dev",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/12940218",
+          "createdDate": "2025-05-15T19:00:59.889Z",
+          "closedDate": "2025-05-16T20:48:08.467Z",
+          "createdBy": "Andrew Yang",
+          "mergeStrategy": "Squash",
+          "isDraft": false
+        },
+        {
+          "pullRequestId": 12944571,
+          "title": "[UCX] Add eUSB2v1 interface",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/andryang/UCX-eUSB2v1",
+          "targetBranch": "refs/heads/official/ge_current_directcplat_scon_dev",
+          "status": "Abandoned",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/12944571",
+          "createdDate": "2025-05-15T21:09:31.091Z",
+          "closedDate": "2025-05-15T21:27:37.291Z",
+          "createdBy": "Andrew Yang",
+          "mergeStrategy": null,
+          "isDraft": true
+        },
+        {
+          "pullRequestId": 13020442,
+          "title": "[EUSB2v1] Double Isoch Bandwidth Support",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/weimao/eUSB2v1-double-isoch-BW",
+          "targetBranch": "refs/heads/official/ge_current_directcplat_scon_dev",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/13020442",
+          "createdDate": "2025-05-22T19:08:42.009Z",
+          "closedDate": "2025-10-07T20:56:15.165Z",
+          "createdBy": "Wei Mao",
+          "mergeStrategy": "Squash",
+          "isDraft": false
+        },
+        {
+          "pullRequestId": 12944631,
+          "title": "[UCX] Add eUSB2v1 public interface",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/andryang/UCX-eUSB2v1",
+          "targetBranch": "refs/heads/official/ge_current_directcplat_scon_dev",
+          "status": "Abandoned",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/12944631",
+          "createdDate": "2025-05-15T21:26:05.027Z",
+          "closedDate": "2025-06-11T18:17:39.776Z",
+          "createdBy": "Andrew Yang",
+          "mergeStrategy": null,
+          "isDraft": true
+        },
+        {
+          "pullRequestId": 14006614,
+          "title": "BusesCdFeatureEnablementTool - Enable Feature_Standalone_Future",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/murphyryan/buses-feature-enablement-fix",
+          "targetBranch": "refs/heads/official/ge_current_directcplat_scon_dev",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/14006614",
+          "createdDate": "2025-10-17T20:13:38.019Z",
+          "closedDate": "2025-10-27T21:33:46.089Z",
+          "createdBy": "Murphy Ryan",
+          "mergeStrategy": "NoFastForward",
+          "isDraft": false
+        }
+      ]
+    },
+    {
+      "id": 57002423,
+      "title": "Support resizing states",
+      "type": "Task",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "pullRequests": []
+    },
+    {
+      "id": 57010852,
+      "title": "WDF - Migrate the VBscript dependency By Aug 2025",
+      "type": "Deliverable",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "pullRequests": []
+    },
+    {
+      "id": 57344706,
+      "title": "[1] [Recovery] Invoke PLDR / FLDR on device crash",
+      "type": "Task",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "pullRequests": [
+        {
+          "pullRequestId": 12830581,
+          "title": "[UMDF DMA] Query and Invoke Platform/Function Level Device Reset",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/weimao/query-and-invoke-PLDR-FLDR",
+          "targetBranch": "refs/heads/official/ge_current_directcplat_scon_dev",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/12830581",
+          "createdDate": "2025-04-29T16:50:40.476Z",
+          "closedDate": "2025-05-05T17:35:40.655Z",
+          "createdBy": "Wei Mao",
+          "mergeStrategy": "Squash",
+          "isDraft": false
+        }
+      ]
+    },
+    {
+      "id": 57421651,
+      "title": "[1] [UMDF DMA] Require ProcessSharingDisabled",
+      "type": "Task",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "pullRequests": [
+        {
+          "pullRequestId": 12868419,
+          "title": "[UMDF DMA] Require ProcessSharingDisabled",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/weimao/dma-disables-process-sharing",
+          "targetBranch": "refs/heads/official/ge_current_directcplat_scon_dev",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/12868419",
+          "createdDate": "2025-05-05T19:00:42.447Z",
+          "closedDate": "2025-06-24T15:26:48.803Z",
+          "createdBy": "Wei Mao",
+          "mergeStrategy": "Squash",
+          "isDraft": false
+        }
+      ]
+    },
+    {
+      "id": 57990286,
+      "title": "[VisioPluginForSmfx] Match colors/fonts closer to MagicDraw (for readability and transition ease)",
+      "type": "Task",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "pullRequests": []
+    },
+    {
+      "id": 58132333,
+      "title": "USB4 Bugfixes for 2510",
+      "type": "Task",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "pullRequests": []
+    },
+    {
+      "id": 58145457,
+      "title": "Sensors Bugfixes for 2510",
+      "type": "Deliverable",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Sensors",
+      "pullRequests": []
+    },
+    {
+      "id": 58207911,
+      "title": "[I3C] HostController must remain in D0 while Target has non-IBI transfers pending",
+      "type": "Task",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "pullRequests": [
+        {
+          "pullRequestId": 13864945,
+          "title": "[I3C] Return HostController-Instance to D0 when Target updates DAT",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/matwilli/i3c-updatedat-d0",
+          "targetBranch": "refs/heads/official/ge_current_directcplat_scon_dev",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/13864945",
+          "createdDate": "2025-09-28T00:40:42.082Z",
+          "closedDate": "2025-09-30T16:36:14.172Z",
+          "createdBy": "Matthew Williams",
+          "mergeStrategy": "Squash",
+          "isDraft": false
+        }
+      ]
+    },
+    {
+      "id": 58638331,
+      "title": "TVS: Multiple 28750 Warnings in file: shell\\osshell\\cpls\\ports\\ports.c",
+      "type": "Deliverable",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "pullRequests": [
+        {
+          "pullRequestId": 13311236,
+          "title": "Addressing TVS Warning regarding the use of non-permitted lstrlen function",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/murphyryan/tvs-lstrlen-fix",
+          "targetBranch": "refs/heads/official/ge_current_directcplat_scon_dev",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/13311236",
+          "createdDate": "2025-07-15T16:44:58.932Z",
+          "closedDate": "2025-10-06T20:08:36.447Z",
+          "createdBy": "Murphy Ryan",
+          "mergeStrategy": "Squash",
+          "isDraft": false
+        }
+      ]
+    },
+    {
+      "id": 58949309,
+      "title": "[Arm64][Compat][CRD][Device][keyboard][Inconsistent]: Keyboard not working inconsistently in Device.",
+      "type": "Bug",
+      "state": "Closed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "pullRequests": []
+    },
+    {
+      "id": 59176904,
+      "title": "[I3C][WinI3C] Reset API",
+      "type": "Task",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "pullRequests": [
+        {
+          "pullRequestId": 13852038,
+          "title": "[I3C][WinI3C] Reset API",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/matwilli/wini3c-reset",
+          "targetBranch": "refs/heads/official/ge_current_directcplat_scon_dev",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/13852038",
+          "createdDate": "2025-09-25T22:49:57.151Z",
+          "closedDate": "2025-09-30T16:36:14.208Z",
+          "createdBy": "Matthew Williams",
+          "mergeStrategy": "Squash",
+          "isDraft": false
+        }
+      ]
+    },
+    {
+      "id": 59388824,
+      "title": "[USB][Test] Add USB Wake Test for testing controller sleep/wake scenarios",
+      "type": "Task",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "pullRequests": [
+        {
+          "pullRequestId": 12899153,
+          "title": "[USB3][Test] USB3 Wake Test",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/phantrinhha/usb3-wake-test",
+          "targetBranch": "refs/heads/official/ge_current_directcplat_scon_dev",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/12899153",
+          "createdDate": "2025-05-09T16:52:00.137Z",
+          "closedDate": "2025-10-16T17:48:03.251Z",
+          "createdBy": "Phan Trinh Ha",
+          "mergeStrategy": "Squash",
+          "isDraft": false
+        }
+      ]
+    },
+    {
+      "id": 59692400,
+      "title": "[I3C] Enable on Intel NVL",
+      "type": "Task",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
+      "pullRequests": [
+        {
+          "pullRequestId": 13923614,
+          "title": "[I3C] Add Intel NVL support",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/alscarpa/i3c_nvl",
+          "targetBranch": "refs/heads/official/ge_current_directcplat_scon_dev",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/13923614",
+          "createdDate": "2025-10-07T21:47:34.392Z",
+          "closedDate": "2025-10-07T23:52:02.715Z",
+          "createdBy": "Alex Scarpantoni",
+          "mergeStrategy": "Squash",
+          "isDraft": false
+        }
+      ]
+    },
+    {
+      "id": 59693022,
+      "title": "After the update, the adaptive color option is removed from Settings app.",
       "type": "Bug",
       "state": "Closed",
       "areaPath": "OS\\Core\\Connectivity Platform\\Sensors",
-      "description": "Sensor fusion driver crashes when switching between monitors with different orientations. Root cause is race condition in accelerometer data aggregation.",
+      "pullRequests": []
+    },
+    {
+      "id": 59907326,
+      "title": "[SuperMITT] Add HIDI3C Mouse and Keyboard Support",
+      "type": "Task",
+      "state": "Completed",
+      "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
       "pullRequests": [
         {
-          "id": 1003,
-          "title": "Fix race condition in sensor data aggregation",
-          "description": "Adds proper locking around sensor data structures accessed from multiple threads. Includes stress test that reproduces the original crash and validates the fix.",
-          "repository": "os-client",
-          "sourceBranch": "users/janedoe/sensor-race-fix",
-          "targetBranch": "main"
+          "pullRequestId": 14042644,
+          "title": "[SuperMITT] Add HIDI3C Keyboard and Mouse tests",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/joespall/hidi3c-input",
+          "targetBranch": "refs/heads/official/ge_current_directcplat_scon_dev",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/14042644",
+          "createdDate": "2025-10-23T16:59:58.317Z",
+          "closedDate": "2025-10-24T15:34:48.491Z",
+          "createdBy": "Joe Spall",
+          "mergeStrategy": "Squash",
+          "isDraft": false
         }
       ]
     },
     {
-      "id": 12345680,
-      "title": "Add HID-over-I2C error recovery",
-      "type": "User Story",
-      "state": "Closed",
+      "id": 59963386,
+      "title": "[WDF][HLK] Update WdfFuncTableChecks for v35 release",
+      "type": "Task",
+      "state": "Completed",
       "areaPath": "OS\\Core\\Connectivity Platform\\Buses",
-      "description": "Implement automatic recovery for HID-over-I2C devices when they become unresponsive. This improves reliability for touchpads and touchscreens that use I2C transport.",
       "pullRequests": [
         {
-          "id": 1004,
-          "title": "Add I2C bus reset for unresponsive HID devices",
-          "description": "Implements detection of hung I2C transactions and automatic bus reset with device re-initialization. Includes retry logic and telemetry for recovery success rates.",
-          "repository": "os-client",
-          "sourceBranch": "users/bobsmith/i2c-recovery",
-          "targetBranch": "main"
+          "pullRequestId": 14085958,
+          "title": "[WDF][HLK] Update WdfFuncTableChecks for v35 release",
+          "repositoryName": "os.2020",
+          "sourceBranch": "refs/heads/user/weimao/CheckWdfFunctionTable",
+          "targetBranch": "refs/heads/official/ge_current_directcplat_scon_dev",
+          "status": "Completed",
+          "url": "https://microsoft.visualstudio.com/8d47e068-03c8-4cdc-aa9b-fc6929290322/_apis/git/repositories/0d54b6ef-7283-444f-847a-343728d58a4d/pullRequests/14085958",
+          "createdDate": "2025-10-28T21:01:22.842Z",
+          "closedDate": "2025-10-29T00:08:20.850Z",
+          "createdBy": "Wei Mao",
+          "mergeStrategy": "Squash",
+          "isDraft": false
         }
       ]
     }
