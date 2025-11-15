@@ -545,13 +545,19 @@ if ($busesItems) {
 $(($wi.pullRequests | ForEach-Object { 
     $pr = $_
     $prDesc = if ($pr.description) { 
-        # Escape markdown headings in PR descriptions
-        $escapedDesc = $pr.description -replace '(?m)^(#{1,6})\s', '\$1 '
-        "`n`n    **Description:**`n`n" + ($escapedDesc -split "`n" | ForEach-Object { "    $_" }) -join "`n"
+        # Clean up description and format as indented text block
+        $cleanDesc = $pr.description.Trim()
+        if ($cleanDesc) {
+            # Split by actual newlines and indent each line
+            $lines = $cleanDesc -split "`r`n|`r|`n"
+            "`n    **Repository:** $($pr.repository)`n`n    **Description:**`n`n" + ($lines | ForEach-Object { "    $_" }) -join "`n"
+        } else {
+            "`n    **Repository:** $($pr.repository)"
+        }
     } else { 
-        "" 
+        "`n    **Repository:** $($pr.repository)" 
     }
-    "  - **PR #$($pr.id):** $($pr.title)`n    **Repository:** $($pr.repository)$prDesc"
+    "  - **PR #$($pr.id):** $($pr.title)$prDesc"
 }) -join "`n`n")
 
 "@
@@ -578,13 +584,19 @@ if ($sensorsItems) {
 $(($wi.pullRequests | ForEach-Object { 
     $pr = $_
     $prDesc = if ($pr.description) { 
-        # Escape markdown headings in PR descriptions
-        $escapedDesc = $pr.description -replace '(?m)^(#{1,6})\s', '\$1 '
-        "`n`n    **Description:**`n`n" + ($escapedDesc -split "`n" | ForEach-Object { "    $_" }) -join "`n"
+        # Clean up description and format as indented text block
+        $cleanDesc = $pr.description.Trim()
+        if ($cleanDesc) {
+            # Split by actual newlines and indent each line
+            $lines = $cleanDesc -split "`r`n|`r|`n"
+            "`n    **Repository:** $($pr.repository)`n`n    **Description:**`n`n" + ($lines | ForEach-Object { "    $_" }) -join "`n"
+        } else {
+            "`n    **Repository:** $($pr.repository)"
+        }
     } else { 
-        "" 
+        "`n    **Repository:** $($pr.repository)" 
     }
-    "  - **PR #$($pr.id):** $($pr.title)`n    **Repository:** $($pr.repository)$prDesc"
+    "  - **PR #$($pr.id):** $($pr.title)$prDesc"
 }) -join "`n`n")
 
 "@
