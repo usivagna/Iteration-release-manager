@@ -234,16 +234,28 @@ else {
         
         # Find linked pull requests
         if ($wi.relations) {
+            # Debug: Show all relation types for first few items
             $prLinks = $wi.relations | Where-Object { 
                 $_.rel -eq 'ArtifactLink' -and $_.url -match 'vstfs:///Git/PullRequestId/'
             }
             
+            if ($prLinks.Count -gt 0) {
+                Write-Host "    Found $($prLinks.Count) PR link(s)" -ForegroundColor Cyan
+                # Debug: Show first PR link URL format
+                Write-Host "      Sample URL: $($prLinks[0].url)" -ForegroundColor Gray
+            }
+            
             foreach ($prLink in $prLinks) {
-                # Extract PR ID from artifact link
-                if ($prLink.url -match 'vstfs:///Git/PullRequestId/([^/]+)/([^/]+)/([^/]+)') {
+                # Extract PR ID from artifact link - URL decode first as GUIDs may be encoded
+                $decodedUrl = [System.Web.HttpUtility]::UrlDecode($prLink.url)
+                
+                # Match pattern: vstfs:///Git/PullRequestId/{projectId}/{repoId}/{prId}
+                if ($decodedUrl -match 'vstfs:///Git/PullRequestId/([^/]+)/([^/]+)/([^/]+)') {
                     $prProjectId = $matches[1]
                     $prRepoId = $matches[2]
                     $prId = $matches[3]
+                    
+                    Write-Host "      Fetching PR #$prId from repo $prRepoId..." -ForegroundColor Gray
                     
                     $cacheKey = "$prProjectId-$prRepoId-$prId"
                     
@@ -253,6 +265,13 @@ else {
                         $pr = Invoke-ADORestAPI -Uri $prUrl
                         
                         if ($pr) {
+                            Write-Host "        Retrieved PR: $($pr.title)" -ForegroundColor Green
+                            if ($pr.description) {
+                                Write-Host "        Description length: $($pr.description.Length) chars" -ForegroundColor Green
+                            } else {
+                                Write-Host "        Warning: PR has no description" -ForegroundColor Yellow
+                            }
+                            
                             # Get repository name
                             $repoUrl = "$baseUrl/$ProjectName/_apis/git/repositories/$prRepoId`?api-version=7.1-preview.1"
                             $repo = Invoke-ADORestAPI -Uri $repoUrl
@@ -267,7 +286,11 @@ else {
                             }
                             
                             $prCache[$cacheKey] = $prInfo
+                        } else {
+                            Write-Host "        Error: Failed to retrieve PR details" -ForegroundColor Red
                         }
+                    } else {
+                        Write-Host "        Using cached PR data" -ForegroundColor Gray
                     }
                     
                     if ($prCache.ContainsKey($cacheKey)) {
@@ -279,6 +302,16 @@ else {
         
         $processedWorkItems += $workItem
     }
+    
+    # Summary statistics
+    $workItemsWithPRs = ($processedWorkItems | Where-Object { $_.pullRequests.Count -gt 0 }).Count
+    $totalPRs = ($processedWorkItems | ForEach-Object { $_.pullRequests.Count } | Measure-Object -Sum).Sum
+    Write-Host ""
+    Write-Host "Summary:" -ForegroundColor Cyan
+    Write-Host "  Total work items: $($processedWorkItems.Count)" -ForegroundColor Green
+    Write-Host "  Work items with PRs: $workItemsWithPRs" -ForegroundColor Green
+    Write-Host "  Total PRs found: $totalPRs" -ForegroundColor Green
+    Write-Host ""
     
     $workItemsData = @{
         iterationName = $iterationInfo.iterationName
@@ -316,20 +349,21 @@ function Invoke-CopilotSummary {
         }
         
         # Prepare the context with PR descriptions prominently featured
+        # Filter to only include work items with PRs
+        $workItemsWithPRs = $Data.workItems | Where-Object { $_.pullRequests.Count -gt 0 }
+        
         $contextText = @"
 Iteration: $($Data.iterationName)
 Period: $($Data.startDate) to $($Data.endDate)
 
+Work Items with Pull Requests: $($workItemsWithPRs.Count)
+
 Work Items and Pull Requests:
-$( ($Data.workItems | ForEach-Object {
+$( ($workItemsWithPRs | ForEach-Object {
     $wi = $_
-    $prDetails = if ($wi.pullRequests.Count -gt 0) {
-        ($wi.pullRequests | ForEach-Object {
-            "  - PR #$($_.id): $($_.title) [$($_.repository)]`n    Description: $($_.description)"
-        }) -join "`n"
-    } else {
-        "  No linked PRs"
-    }
+    $prDetails = ($wi.pullRequests | ForEach-Object {
+        "  - PR #$($_.id): $($_.title) [$($_.repository)]`n    Description: $($_.description)"
+    }) -join "`n"
     "Work Item [$($wi.id)] - $($wi.title) ($($wi.type), $($wi.areaPath))`n  Description: $($wi.description)`n  Pull Requests:`n$prDetails"
 }) -join "`n`n" )
 "@
@@ -432,6 +466,9 @@ IMPORTANT: Use the actual PR descriptions and titles from the provided data to c
 
 if (-not $UseAI) {
     # Enhanced template-based generation with PR descriptions
+    # Filter to only include work items with PRs
+    $workItemsWithPRs = $workItemsData.workItems | Where-Object { $_.pullRequests.Count -gt 0 }
+    
 $internalSummary = @"
 # Iteration Summary: $($iterationInfo.iterationName)
 
@@ -442,17 +479,18 @@ $internalSummary = @"
 ## Executive Summary
 
 - Total work items completed: $($workItemsData.workItems.Count)
-- Breakdown by type:
-$(($workItemsData.workItems | Group-Object type | ForEach-Object { "  - $($_.Name): $($_.Count)" }) -join "`n")
-- Breakdown by area:
-$(($workItemsData.workItems | Group-Object { $_.areaPath -replace '.*\\', '' } | ForEach-Object { "  - $($_.Name): $($_.Count)" }) -join "`n")
+- Work items with PRs: $($workItemsWithPRs.Count)
+- Breakdown by type (with PRs):
+$(($workItemsWithPRs | Group-Object type | ForEach-Object { "  - $($_.Name): $($_.Count)" }) -join "`n")
+- Breakdown by area (with PRs):
+$(($workItemsWithPRs | Group-Object { $_.areaPath -replace '.*\\', '' } | ForEach-Object { "  - $($_.Name): $($_.Count)" }) -join "`n")
 
 ## Completed Work Items
 
 ### Buses Component
 
 $(
-$busesItems = $workItemsData.workItems | Where-Object { $_.areaPath -like '*\Buses' }
+$busesItems = $workItemsWithPRs | Where-Object { $_.areaPath -like '*\Buses*' }
 if ($busesItems) {
     ($busesItems | ForEach-Object {
 @"
@@ -464,27 +502,23 @@ if ($busesItems) {
 $($_.description)
 
 **Pull Requests:**
-$(if ($_.pullRequests.Count -gt 0) {
-    ($_.pullRequests | ForEach-Object { 
-        $prDesc = if ($_.description) { "`n  *Description:* $($_.description)" } else { "" }
-        "- **PR #$($_.id):** $($_.title) [$($_.repository)]$prDesc"
-    }) -join "`n"
-} else {
-    "No linked pull requests"
-})
+$(($_.pullRequests | ForEach-Object { 
+    $prDesc = if ($_.description) { "`n  *Description:* $($_.description)" } else { "" }
+    "- **PR #$($_.id):** $($_.title) [$($_.repository)]$prDesc"
+}) -join "`n")
 
 ---
 "@
     }) -join "`n`n"
 } else {
-    "No work items completed in Buses component."
+    "No work items with PRs completed in Buses component."
 }
 )
 
 ### Sensors Component
 
 $(
-$sensorsItems = $workItemsData.workItems | Where-Object { $_.areaPath -like '*\Sensors' }
+$sensorsItems = $workItemsWithPRs | Where-Object { $_.areaPath -like '*\Sensors*' }
 if ($sensorsItems) {
     ($sensorsItems | ForEach-Object {
 @"
@@ -496,20 +530,16 @@ if ($sensorsItems) {
 $($_.description)
 
 **Pull Requests:**
-$(if ($_.pullRequests.Count -gt 0) {
-    ($_.pullRequests | ForEach-Object { 
-        $prDesc = if ($_.description) { "`n  *Description:* $($_.description)" } else { "" }
-        "- **PR #$($_.id):** $($_.title) [$($_.repository)]$prDesc"
-    }) -join "`n"
-} else {
-    "No linked pull requests"
-})
+$(($_.pullRequests | ForEach-Object { 
+    $prDesc = if ($_.description) { "`n  *Description:* $($_.description)" } else { "" }
+    "- **PR #$($_.id):** $($_.title) [$($_.repository)]$prDesc"
+}) -join "`n")
 
 ---
 "@
     }) -join "`n`n"
 } else {
-    "No work items completed in Sensors component."
+    "No work items with PRs completed in Sensors component."
 }
 )
 
@@ -517,30 +547,30 @@ $(if ($_.pullRequests.Count -gt 0) {
 
 ### Major Features Implemented
 $(
-$features = $workItemsData.workItems | Where-Object { $_.type -in @('User Story', 'Feature') }
+$features = $workItemsWithPRs | Where-Object { $_.type -in @('User Story', 'Feature') }
 if ($features) {
     ($features | ForEach-Object { "- [$($_.id)] $($_.title)" }) -join "`n"
 } else {
-    "- No major features in this iteration"
+    "- No major features with PRs in this iteration"
 }
 )
 
 ### Critical Bugs Fixed
 $(
-$bugs = $workItemsData.workItems | Where-Object { $_.type -eq 'Bug' }
+$bugs = $workItemsWithPRs | Where-Object { $_.type -eq 'Bug' }
 if ($bugs) {
     ($bugs | ForEach-Object { "- [$($_.id)] $($_.title)" }) -join "`n"
 } else {
-    "- No critical bugs fixed in this iteration"
+    "- No critical bugs with PRs fixed in this iteration"
 }
 )
 
 ## Pull Request Summary
 
-- Total PRs merged: $(($workItemsData.workItems | ForEach-Object { $_.pullRequests } | Measure-Object).Count)
+- Total PRs merged: $(($workItemsWithPRs | ForEach-Object { $_.pullRequests } | Measure-Object).Count)
 - Most active repositories:
 $(
-$prsByRepo = $workItemsData.workItems | ForEach-Object { $_.pullRequests } | Group-Object repository
+$prsByRepo = $workItemsWithPRs | ForEach-Object { $_.pullRequests } | Group-Object repository
 if ($prsByRepo) {
     ($prsByRepo | Sort-Object Count -Descending | Select-Object -First 5 | ForEach-Object { "  - $($_.Name): $($_.Count) PRs" }) -join "`n"
 } else {
@@ -640,17 +670,20 @@ IMPORTANT:
 
 if (-not $UseAI) {
     # Enhanced template-based generation with PR descriptions
+    # Filter to only include work items with PRs
+    $workItemsWithPRsInsider = $workItemsData.workItems | Where-Object { $_.pullRequests.Count -gt 0 }
+    
 $insiderNotes = @"
 # What's New in Buses & Sensors - $($iterationInfo.iterationName)
 
 ## Overview
 
-This release includes $($workItemsData.workItems.Count) improvements to Windows connectivity and sensor capabilities, focusing on enhanced reliability, performance, and user experience.
+This release includes $($workItemsWithPRsInsider.Count) improvements to Windows connectivity and sensor capabilities, focusing on enhanced reliability, performance, and user experience.
 
 ## New Features
 
 $(
-$features = $workItemsData.workItems | Where-Object { $_.type -in @('User Story', 'Feature') }
+$features = $workItemsWithPRsInsider | Where-Object { $_.type -in @('User Story', 'Feature') }
 if ($features) {
     ($features | ForEach-Object {
         $wi = $_
@@ -666,7 +699,6 @@ if ($features) {
         } else { 
             "Enhanced functionality in the connectivity platform." 
         }
-        
         # Include PR descriptions for more context
         $prContext = if ($wi.pullRequests.Count -gt 0) {
             "`n`n**Technical implementation:**"
@@ -694,25 +726,25 @@ $desc$prContext
 "@
     }) -join "`n"
 } else {
-    "No new features in this release."
+    "No new features with PRs in this release."
 }
 )
 
 ## Improvements
 
 $(
-$tasks = $workItemsData.workItems | Where-Object { $_.type -eq 'Task' }
+$tasks = $workItemsWithPRsInsider | Where-Object { $_.type -eq 'Task' }
 if ($tasks) {
     ($tasks | ForEach-Object { "- $($_.title)" }) -join "`n"
 } else {
-    "- General stability and performance improvements"
+    "- No tasks with PRs in this release"
 }
 )
 
 ## Bug Fixes
 
 $(
-$bugs = $workItemsData.workItems | Where-Object { $_.type -eq 'Bug' }
+$bugs = $workItemsWithPRsInsider | Where-Object { $_.type -eq 'Bug' }
 if ($bugs) {
     ($bugs | ForEach-Object {
         $wi = $_
@@ -727,7 +759,6 @@ if ($bugs) {
         } else {
             "Resolved an issue affecting system reliability."
         }
-        
         # Include PR fix descriptions
         $prFixes = if ($wi.pullRequests.Count -gt 0) {
             "`n`n**Fix details:**"
@@ -755,7 +786,7 @@ $desc$prFixes
 "@
     }) -join "`n"
 } else {
-    "No major bug fixes in this release."
+    "No major bug fixes with PRs in this release."
 }
 )
 
@@ -767,7 +798,7 @@ Please review the work items and pull requests for detailed information about an
 
 ### Work Items Included
 
-$(($workItemsData.workItems | ForEach-Object { "- Work Item $($_.id): $($_.title)" }) -join "`n")
+$(($workItemsWithPRsInsider | ForEach-Object { "- Work Item $($_.id): $($_.title)" }) -join "`n")
 
 ---
 
