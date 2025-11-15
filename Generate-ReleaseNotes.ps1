@@ -399,157 +399,98 @@ $internalSummaryPath = Join-Path $OutputDir "internal-summary-$timestamp.md"
 
 if ($UseAI) {
     $aiPrompt = @"
-Based on the provided Azure DevOps work item and pull request data, create a structured technical progress report for engineering leadership.
+You are generating an internal engineering iteration summary from Azure DevOps data.
 
-TARGET AUDIENCE: Engineering managers, technical leads, and leadership
-TONE: Professional, concise, engineering-focused with active voice
-PURPOSE: Progress report for iteration $($iterationInfo.iterationName)
+CONTEXT: After this prompt you'll see "===== CONTEXT DATA =====" followed by:
+- Iteration name and date range
+- A flat text listing of Work Items with Pull Requests, including PR titles, descriptions, repo, area path
 
-REQUIRED STRUCTURE:
+TASK
+Create a concise, executive-ready Markdown document where section headings are **derived dynamically** from the PRs and work items provided—no hardcoded headings.
 
-# [Main Component Areas in Parentheses]
+AUDIENCE
+Engineering managers and technical leadership.
 
-Start with a header that lists the main technical areas covered, e.g.:
-"Buses (Input, Low Power Buses, USB) & Windows Driver Frameworks (WDF)"
+TONE
+Professional, concise, action-oriented; use active voice and plain technical English.
 
-Analyze the area paths in the work item data to determine the specific component areas.
+OUTPUT FORMAT (Markdown only; no front-matter, no extra commentary)
 
-## Iteration $($iterationInfo.iterationName) Summary
+# Buses (Input, Low Power Buses, USB) & Windows Driver Frameworks (WDF)
 
-**Period:** $($iterationInfo.startDate) to $($iterationInfo.endDate)
+**Period:** [iteration start date] to [iteration end date]
 
-### Overview
+## Executive Overview
+2–3 bullets (1–2 lines each): scope, major themes, and notable deliveries for this iteration.
 
-Write ONE introductory paragraph (3-5 sentences) that summarizes:
-- Overall engagement scope and progress for this iteration
-- Total work items/PRs completed with breakdown by type
-- Major themes identified from the data (e.g., platform defects, partner collaboration, feature enablement, security hardening)
-- High-level impact on reliability, performance, or security
+## [Dynamic Topic Section Name]
+**Dynamic topic sections** (H2) generated from the PRs/work items you analyze:
+- Derive topic names by clustering PR titles/descriptions/area paths.
+- Use up to 5 sections, ordered by impact (first) then count.
+- Include 3–6 bullets per section.
+- Each bullet: WHAT changed (specific), WHY it matters (impact), optionally WHERE (component).
 
-Example tone: "This iteration focused on [X] platform defects, [Y] partner engagements, and [Z] strategic initiatives. We completed [N] work items across USB, I3C, and WDF components, with emphasis on [major theme]. Key deliverables include [highlight 1-2 major items]."
+## Key Accomplishments
+Bulleted list (4–6 items): one-liners that surface the highest-value work; each ends with a short "why it matters".
 
----
+## Risks / Blocks / Next Steps _(optional)_
+3–5 bullets, only if explicitly evidenced in the context (shipping notes, follow-ups, validation plans). Do **not** invent.
 
-## Major Initiatives & Technical Progress
+## Release & Delivery Notes
+Bullets that pull concrete delivery signals (e.g., "CD 2601/2602", "EnabledByDefault", "AlwaysEnabled/Disabled", branch mentions). Summarize succinctly.
 
-For each significant technical initiative found in the PR data, create a subsection with:
+DYNAMIC TOPIC DISCOVERY (strict rules)
+- Build topics by clustering on these signals (union, not intersection):
+  • Area path leaf (e.g., Buses, Sensors)
+  • Repository names (e.g., USBXHCI, UCX, usbhub3, WDF)
+  • Keywords in PR titles/descriptions
+- Use this mapping to normalize topic **labels** (examples, not exhaustive):
+  • /(usb4|usb3|type[- ]c|ucx|xhci|usbhub3|ucm(cx)?)/i → "USB & USB4"
+  • /(i3c|hidi3c|wini3c|supermitt)/i → "I3C (Low Power Bus)"
+  • /(wdf|kmdf|umdf|netcx|hlk|driver verifier)/i → "WDF & Frameworks"
+  • /(des|display enhancements|brightness|sensors)/i → "Power & Sensors"
+  • /(telemetry|diagnostics|logging)/i → "Diagnostics & Observability"
+  • /(uma|security|hardening|cfg)/i → "Security Hardening"
+  • /(drips|c[- ]states|power|latency|performance)/i → "Power & Performance"
+- If a cluster has < 2 concrete items, merge it into "Other Platform Improvements".
+- Prefer the **most specific** normalized label that matches the majority of items in the cluster.
 
-### [Initiative Name] (e.g., "DMA Support for UMDF Drivers", "I3C Platform Adoption", "Rust Integration for WDF")
+WHAT TO EXTRACT FROM PR DATA
+- Concrete technical changes (algorithms, flags, interfaces, DDIs, tests)
+- Delivery levers (EnabledByDefault, AlwaysEnabled/Disabled, CFRs, backports/branches)
+- Validation signals (HLK/tests run, partner validation, perf/compat checks)
+- Partner/Platform scope (Intel/AMD/QC/Surface/DIS)
 
-**Background & Context:**
-- Why this initiative matters (business/technical drivers)
-- Goals and expected outcomes
-- Any relevant standards, specifications, or partner dependencies
+STRICT CONTENT RULES
+- **No invention**: only use facts present in the context.
+- If a fact is uncertain, omit it.
+- Summaries must be **specific** (e.g., "captured secondary data to blame Tunnel/VPP for 0x15F DRIPS" > "improved reliability").
+- Use one sentence (two max) per bullet.
+- Do not list raw PR numbers in section headers; inside bullets, format PR references as **PR #12345** (bold).
+- Use inline code for files/APIs/symbols (e.g., `Usb4HostRouter.sys`, `WudfRd.sys`, `IOCTL_I3C_TARGET_RESET`).
 
-**Current Iteration Progress:**
-- Specific technical actions completed (use PR descriptions)
-- Key implementations, discussions, or decisions made
-- Partnerships or collaborations (with OEMs, IHVs, or internal teams)
-- Technical challenges addressed
+MARKDOWN STYLE (enforced)
+- H1 (#) for the main title only
+- H2 (##) for all major sections (Executive Overview, dynamic topics, Key Accomplishments, Risks/Blocks, Release Notes)
+- NO H3 or deeper headings - keep it flat and scannable
+- Blank line before/after every heading and list.
+- Bullets start with a **bold focus** phrase, then a colon, then the summary.
+  Example: **USB4 DRIPS classification:** Captures tunnel/VPP secondary data to correctly assign blame; reduces misdiagnosis in GE/CD.
+- Where helpful, end a bullet with "*Why it matters:* …" (short phrase).
+- Keep total length ≈ 300–450 words (not counting PR refs formatted inline).
 
-**Next Steps:**
-- Ongoing investigations or follow-up work
-- Upcoming milestones or dependencies
-- Areas requiring attention
+QUALITY BAR (self-check before returning)
+- Are headings truly data-driven (not hardcoded)?
+- Are bullets specific and impact-oriented?
+- Are delivery signals (CD/branch/feature flags) summarized succinctly?
+- Is there zero invented content? If a section would be empty, omit it rather than inventing.
+- Are there no tables, images, or links unless present in context?
+- Does every list and heading follow the spacing rules above?
 
-ANALYZE THE PR DESCRIPTIONS to identify major initiatives. Look for:
-- Features spanning multiple PRs or work items
-- Strategic technical directions (new frameworks, security improvements, performance optimizations)
-- Partner-driven work (OEM/IHV engagements)
-- Platform improvements (test infrastructure, tooling, SDK updates)
+Now read the CONTEXT DATA below and produce the final Markdown.
 
----
+========== CONTEXT DATA =====
 
-## Technical Depth & Standards
-
-Throughout the document, include:
-- Specific technologies: USB ESS, eUSB2, USB4, I3C/I2C, Thunderbolt
-- Framework details: UMDF, KMDF, NetCx, WDF
-- Standards and compliance: WHCP, HLK, HIDI3C specifications
-- Architecture terms: DMA, IBI, power management (D-states), PCI-e
-- Security topics: UMA (usermode access), driver hardening, CFG
-
-Use technical acronyms and terminology appropriate for engineering leadership.
-
----
-
-## Delivery Highlights
-
-Provide bulleted lists organized by category:
-
-### Features & Capabilities Delivered
-
-- [Feature name]: [Brief technical description and benefit]
-- Include work item IDs in parentheses for reference
-
-### Bug Fixes & Reliability Improvements
-
-- [Component]: [What was fixed and impact]
-- Mention Watson failures resolved, crash fixes, stability improvements
-
-### CD Releases & Bundles
-
-- List any continuous delivery releases, bugfix bundles, or feature rollouts
-- Include version numbers or build identifiers if available
-
-### Test Infrastructure & Quality
-
-- Test coverage improvements, HLK updates, validation framework enhancements
-- Mention specific test scenarios added
-
-### Partner Engagements
-
-- OEM/IHV collaborations, device certifications, issue resolutions
-- Workarounds provided for partner-reported issues
-
----
-
-## Metrics Summary
-
-**Work Item Breakdown:**
-
-- Total completed: [N]
-- By type: [X] Bug fixes, [Y] Features, [Z] Tasks
-- By component: [breakdown by area path]
-
-**Pull Requests:**
-
-- Total merged: [N]
-- Repositories: [list key repos with counts]
-
-**Impact Areas:**
-
-- Reliability: [count of crash/stability fixes]
-- Security: [count of security-related work]
-- Performance: [count of optimization work]
-- Compliance: [count of certification/HLK work]
-
----
-
-## Notes
-
-This is an engineering progress report generated from Azure DevOps data for iteration $($iterationInfo.iterationName).
-
----
-
-**Generated: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")** 
-
-CRITICAL INSTRUCTIONS:
-1. Analyze PR descriptions thoroughly to identify major technical initiatives
-2. Group related work items into coherent technical narratives
-3. Use active voice and emphasize impact (e.g., "Implemented X to improve Y by Z%")
-4. Include specific technical details, standards, and acronyms
-5. Structure should flow: Overview → Initiatives → Deliverables → Metrics
-6. Each initiative section should have Background → Progress → Next Steps
-7. Use engineering terminology appropriate for technical leadership
-8. Quantify improvements where possible (e.g., "resolved 15 Watson failures")
-
-MARKDOWN FORMATTING RULES:
-- Add blank line before and after ALL lists
-- Add blank line before and after ALL headings (except document title)
-- Use **bold** not *italic* for emphasis in footer
-- Escape square brackets in text with backslash if not links: \[text\]
-- End file with single newline character
 "@
 
     $aiSummary = Invoke-CopilotSummary -Prompt $aiPrompt -Data $workItemsData -OutputFile $internalSummaryPath
@@ -587,59 +528,67 @@ $(($workItemsWithPRs | Group-Object type | ForEach-Object { "  - $($_.Name): $($
 - Breakdown by area (with PRs):
 $(($workItemsWithPRs | Group-Object { $_.areaPath -replace '.*\\', '' } | ForEach-Object { "  - $($_.Name): $($_.Count)" }) -join "`n")
 
-## Completed Work Items
-
-### Buses Component
+## Buses Component
 
 $(
 $busesItems = $workItemsWithPRs | Where-Object { $_.areaPath -like '*\Buses*' }
 if ($busesItems) {
     ($busesItems | ForEach-Object {
+        $wi = $_
 @"
-#### [$($_.id)] $($_.title)
+**[$($wi.id)] $($wi.title)**
 
-**Type:** $($_.type) | **State:** $($_.state)
+- **Type:** $($wi.type)
+- **State:** $($wi.state)
+- **Description:** $($wi.description)
+- **Pull Requests:**
+$(($wi.pullRequests | ForEach-Object { 
+    $pr = $_
+    $prDesc = if ($pr.description) { 
+        # Escape markdown headings in PR descriptions
+        $escapedDesc = $pr.description -replace '(?m)^(#{1,6})\s', '\$1 '
+        "`n`n    **Description:**`n`n" + ($escapedDesc -split "`n" | ForEach-Object { "    $_" }) -join "`n"
+    } else { 
+        "" 
+    }
+    "  - **PR #$($pr.id):** $($pr.title)`n    **Repository:** $($pr.repository)$prDesc"
+}) -join "`n`n")
 
-**Description:**
-$($_.description)
-
-**Pull Requests:**
-$(($_.pullRequests | ForEach-Object { 
-    $prDesc = if ($_.description) { "`n  *Description:* $($_.description)" } else { "" }
-    "- **PR #$($_.id):** $($_.title) [$($_.repository)]$prDesc"
-}) -join "`n")
-
----
 "@
-    }) -join "`n`n"
+    }) -join "`n---`n`n"
 } else {
     "No work items with PRs completed in Buses component."
 }
 )
 
-### Sensors Component
+## Sensors Component
 
 $(
 $sensorsItems = $workItemsWithPRs | Where-Object { $_.areaPath -like '*\Sensors*' }
 if ($sensorsItems) {
     ($sensorsItems | ForEach-Object {
+        $wi = $_
 @"
-#### [$($_.id)] $($_.title)
+**[$($wi.id)] $($wi.title)**
 
-**Type:** $($_.type) | **State:** $($_.state)
+- **Type:** $($wi.type)
+- **State:** $($wi.state)
+- **Description:** $($wi.description)
+- **Pull Requests:**
+$(($wi.pullRequests | ForEach-Object { 
+    $pr = $_
+    $prDesc = if ($pr.description) { 
+        # Escape markdown headings in PR descriptions
+        $escapedDesc = $pr.description -replace '(?m)^(#{1,6})\s', '\$1 '
+        "`n`n    **Description:**`n`n" + ($escapedDesc -split "`n" | ForEach-Object { "    $_" }) -join "`n"
+    } else { 
+        "" 
+    }
+    "  - **PR #$($pr.id):** $($pr.title)`n    **Repository:** $($pr.repository)$prDesc"
+}) -join "`n`n")
 
-**Description:**
-$($_.description)
-
-**Pull Requests:**
-$(($_.pullRequests | ForEach-Object { 
-    $prDesc = if ($_.description) { "`n  *Description:* $($_.description)" } else { "" }
-    "- **PR #$($_.id):** $($_.title) [$($_.repository)]$prDesc"
-}) -join "`n")
-
----
 "@
-    }) -join "`n`n"
+    }) -join "`n---`n`n"
 } else {
     "No work items with PRs completed in Sensors component."
 }
@@ -647,7 +596,7 @@ $(($_.pullRequests | ForEach-Object {
 
 ## Technical Highlights
 
-### Major Features Implemented
+**Major Features Implemented:**
 $(
 $features = $workItemsWithPRs | Where-Object { $_.type -in @('User Story', 'Feature') }
 if ($features) {
@@ -657,7 +606,7 @@ if ($features) {
 }
 )
 
-### Critical Bugs Fixed
+**Critical Bugs Fixed:**
 $(
 $bugs = $workItemsWithPRs | Where-Object { $_.type -eq 'Bug' }
 if ($bugs) {
@@ -729,148 +678,127 @@ if ($UseAI) {
     $uniqueThemes = $themes | Select-Object -Unique | Select-Object -First 5
     
     $aiPromptInsider = @"
-Based on the provided Azure DevOps work item and pull request data, create Windows Insider Blog-style release notes for EXTERNAL AUDIENCES.
+You are generating **Windows Insider** (EXTERNAL) release notes from Azure DevOps work item + PR context.
 
-DATA SUMMARY:
-- Total updates with code changes: $($workItemsWithPRs.Count)
-- Bug fixes: $bugCount
-- Improvements/Tasks: $taskCount
-- New features: $featureCount
-- Key improvement areas: $($uniqueThemes -join ", ")
+AFTER THIS PROMPT you will see "===== CONTEXT DATA =====" followed by:
+- Iteration name and period
+- A flat text listing of Work Items WITH PRs (titles, descriptions, repositories, area paths, and narrative snippets)
 
-TARGET AUDIENCE: External Windows Insiders (enthusiasts, IT professionals, early adopters) - NOT internal Microsoft engineers
-TONE: Friendly, professional, user-focused
-WORD LIMIT: 500 words maximum (excluding Developer section)
+GOAL
+Produce a concise, friendly, user‑facing Markdown post that explains improvements in plain language. Headings and categories must be **derived dynamically** from the data (no hardcoding).
 
-ANALYSIS REQUIRED:
-1. Read through EVERY pull request description thoroughly
-2. Identify the actual technical changes made
-3. Translate those changes into user-facing benefits
-4. Group related improvements together
-5. Eliminate vague, repetitive statements like "general improvements"
+AUDIENCE & TONE
+- Audience: Windows Insiders (enthusiasts, IT pros, early adopters)
+- Tone: Friendly, professional, and **benefit‑first**
+- Length: **≤ 500 words** (excluding the "For Developers" section)
 
-CRITICAL REQUIREMENTS FOR EXTERNAL AUDIENCE:
-❌ DO NOT include:
-- PR numbers, PR titles, or PR descriptions verbatim
-- File paths (e.g., "onecore\drivers\input\hid...")
-- Internal identifiers like "[Watson Failure]", "[UMA]", build numbers
-- Technical jargon without translation (A/V, telemetry, CFR, etc.)
-- Work item titles as written (simplify and humanize them)
-- Vague statements like "General improvements to system functionality" (be specific!)
-- Duplicate/repetitive bullet points
+STRICT REDACTION (external‑safe)
+- ❌ Do NOT include PR numbers/titles or commit messages.
+- ❌ Do NOT include internal paths, codenames, Watson/UMA/CFR/branch internals, or build IDs.
+- ❌ Do NOT include private links.
+- ✅ You MAY include **work item IDs** only in the **For Developers** section, grouped by area, as `#12345` style.
+- ✅ Translate technical terms into user benefits (see "Term Translator" below).
 
-✅ DO include:
-- Specific plain language summaries with technical details translated to benefits
-- User impact explained: HOW will this improve their experience?
-- Real-world scenarios: video conferencing, battery life, security, etc.
-- Concrete examples of what changed
-- Work item IDs only in Developer section (format: #12345, #67890)
+DYNAMIC CATEGORY SYNTHESIS
+Cluster items by keywords (in titles/descriptions/repo names/area paths). Normalize to user‑friendly section labels (examples; choose only those that actually apply):
+- **Camera & USB**  → usb, usb4, usb3, type‑c, xhci, ucx, usbhub3, connectivity, enumeration, bandwidth
+- **Display & Brightness** → display, DES, brightness, hotkeys, monitors
+- **Security** → security, hardening, validation, protective checks
+- **System Stability** → crash, failure, reliability, reset/recovery, hang, lock‑up
+- **Power & Battery** → c‑states, idle, DRIPS, power management, efficiency
+- **Performance** → performance, latency, throughput
+- **Sensors & I3C** → i3c, hidi3c, supermitt, sensor
+- **Networking** → netcx, usb‑ncm, network adapter
+- **Diagnostics & Observability** → telemetry, diagnostics, logging
+- If a cluster has < 2 concrete items, fold into **Other Improvements** (or omit if empty).
+- Order categories by **user impact** (first) then by **item count**.
 
-REQUIRED STRUCTURE:
+TERM TRANSLATOR (examples)
+- "eUSB2v1 double isochronous bandwidth" → "support for higher‑bandwidth built‑in cameras (clearer video)"
+- "PLDR/FLDR" → "automatic device recovery without restarting"
+- "race condition / IBI DPC ordering" → "timing issue that could cause intermittent failures"
+- "DRIPS / package C‑state" → "deeper sleep states for better battery life"
+- "UMA hardening" → "stronger driver security checks"
+- "telemetry / CFR" → "diagnostics and error reporting"
 
+OUTPUT STRUCTURE (Markdown only)
 # Hello Windows Insiders!
 
-Brief welcome (1-2 sentences) mentioning the COUNT and SPECIFIC focus areas (e.g., "camera support, display brightness controls, and system security" not just "device connectivity").
+Short welcome (1–2 sentences) citing total count and 2–3 high‑level focus areas in plain language.
 
 ## 🚀 Overview
-
-Write ONE paragraph (3-4 sentences) that explains the theme of this release in plain language. Focus on user benefits and real-world scenarios.
-
-Then add "What's improved:" section with 3-4 specific bullet points. Each bullet should:
-- Start with a bold key area
-- Include the actual improvement/benefit
-- Be specific enough that users understand what changed
-
-EXAMPLE:
+One paragraph (3–4 sentences) that explains the theme and **user benefits**.
+Then add:
 **What's improved:**
-
-- **Enhanced camera support:** Better video quality through improved USB bandwidth handling for high-resolution cameras
-- **More reliable brightness controls:** Fixed intermittent issues where brightness hotkeys weren't recognized
-- **Better USB device connectivity:** Improved power management means fewer unexpected disconnections
-- **Stronger security:** Enhanced protections in hardware drivers to keep your system safe
-
-Analyze the PR descriptions and work item data to identify the REAL improvements - don't be generic.
+- **<Key area>**: Specific benefit in one sentence.
+- **<Key area>**: Specific benefit in one sentence.
+- **<Key area>**: Specific benefit in one sentence.
+(3–4 bullets max; no duplication.)
 
 ## 🔧 Improvements & Bug Fixes
+Create **only the categories that apply** (from "Dynamic Category Synthesis"), each as a `###` heading.
+Under each category add 2–4 bullets. Each bullet MUST follow:
+- **<Feature/Area>**: WHAT changed (plain language) + WHY it matters (concrete user benefit or scenario).
+Examples:
+- **USB device reliability**: Improved how Windows handles sleep/wake for certain USB controllers, reducing unexpected disconnects after your PC wakes.
+- **Built‑in cameras**: Added support for higher‑bandwidth camera modes, enabling sharper video in calls and recordings.
 
-CRITICAL: Group improvements by category with subsection headers (###). For each category, provide 2-4 detailed bullet points that explain:
-1. WHAT changed (in plain language)
-2. WHY it matters to users (real-world benefit)
-3. HOW it improves their experience (concrete examples)
-
-Use this structure:
-### [Category Name]
-
-- **[Feature/Area]:** [Detailed description with user benefit]. [Explain the real-world impact or use case].
-
-CATEGORIES TO USE (analyze PR descriptions to determine which apply):
-- **Camera & USB Improvements:** For USB bandwidth, camera support, device enumeration, connectivity reliability
-- **Display & Brightness:** For monitor controls, brightness, display-related sensor improvements  
-- **Security Enhancements:** For UMA hardening, driver security, vulnerability fixes
-- **System Stability:** For crash fixes, error recovery, device reset capabilities
-- **Power Management:** For battery life, low-power states, idle behavior
-- **Performance:** For speed optimizations, reduced latency
-
-EXAMPLE OF GOOD DETAIL:
-❌ BAD: "Enhanced security to protect against potential vulnerabilities"
-✅ GOOD: "Updated user-mode hardware drivers with the latest security practices, adding additional validation to protect against potential exploits. This affects HID (Human Interface Device) and virtual function drivers."
-
-❌ BAD: "Improved device connectivity and reliability"
-✅ GOOD: "Added support for eUSB2v1 Double Isochronous Bandwidth, enabling built-in cameras to stream at higher resolutions and bandwidth. This particularly benefits video conferencing and content creation scenarios."
-
-TRANSLATE TECHNICAL TERMS:
-- "eUSB2v1 Double Isochronous Bandwidth" → "high-bandwidth camera support for better video quality"
-- "Watson Failure"/"A/V" → "system crash" or "stability issue"
-- "UMA usermode access" → "security hardening for drivers"
-- "telemetry" → "diagnostic capabilities" or "error reporting"
-- "I3C IBI DPC" → "sensor communication timing"
-- "PLDR/FLDR device reset" → "automatic device recovery without restarting your PC"
-- "Race condition" → "timing issue that occasionally caused..."
-
-## ⚠️ Known Issues (optional, only if relevant)
-
-Include only if there are known limitations users should be aware of. Format:
-- Brief description - Workaround or status
+## ⚠️ Known Issues  _(optional; include only if clearly present in the context)_
+- Brief description — simple workaround or status.
 
 ## 👨‍💻 For Developers
-
-Brief intro (1 sentence): "This release includes updates across [areas]."
-
-Summary format (NO PR details, NO PR titles):
-- **[Category]:** X updates (#12345, #67890, #11111)
-- Example: "**Device Connectivity:** 5 updates (#48522963, #54529555, #56414704)"
-
-Add: "For detailed technical information, refer to the work items in Azure DevOps."
+One sentence intro: "This build includes updates across …"
+Then grouped summaries (no PR titles, no paths):
+- **Device Connectivity:** X updates (**#12345, #23456, #34567** …)
+- **Sensors & I3C:** Y updates (**#…**)
+(Show up to 3 IDs per category followed by "…" if more.)
 
 ## 📦 Availability
-
-Write 1-2 sentences about Dev/Canary channels and how to join at insider.windows.com.
+One short paragraph about Dev/Canary channels and how to join (insider.windows.com).
 
 ## 💬 Feedback
+One short paragraph about using Feedback Hub (Win + F) and the right category.
 
-Write 1-2 sentences about using Feedback Hub (Win + F) under appropriate category, with thank you message.
+WRITING GUARDRAILS (must‑do)
+- **No invention**: only facts present in the context.
+- **FORBIDDEN PHRASES** - NEVER use these generic phrases:
+  * "Improved device connectivity and reliability"
+  * "Enhanced security to protect against potential vulnerabilities"
+  * "General improvements to system functionality"
+  * "Enhanced sensor performance and accuracy"
+  * "Better system stability"
+  * "Optimized performance"
+  ANY generic phrase = FAILURE. You MUST extract specific details from PR descriptions.
+- De‑duplicate aggressively; avoid repeating the same benefit.
+- Use short, concrete sentences with SPECIFIC technical details translated to benefits.
+- Prefer active voice ("We fixed…", "Windows now handles…", "Added support for…").
+- Keep bullets to **1 sentence** (2 max).
+- Do not paste raw identifiers or file names into external sections.
+- Each bullet must be UNIQUE - no two bullets should say the same thing.
 
----
+MANDATORY ANALYSIS PROCESS:
+1. Read EVERY PR description in the context data
+2. Extract the SPECIFIC change (e.g., "added eUSB2v1 support", "fixed race condition in IBI DPC", "enabled FLDR reset capability")
+3. Translate that specific change to a user benefit
+4. Group by category based on keywords
+5. Write ONE unique bullet per distinct improvement
 
-**Generated: November 14, 2025 | Iteration: 2510 | Updates: $($workItemsWithPRs.Count)**
+QUALITY CHECK (before returning)
+- Have you read ALL PR descriptions and extracted specific changes?
+- Are all bullets UNIQUE with NO repetition?
+- Did you avoid ALL forbidden generic phrases?
+- Are categories actually present in data and ordered by impact?
+- Do bullets explain both WHAT changed (specifically) and WHY it matters?
+- Is all internal jargon removed or translated?
+- Is the post ≤ 500 words (excluding developer section)?
+- Are headings and lists spaced correctly (blank line before/after)?
 
-FINAL QUALITY CHECKS:
-✅ Have you analyzed PR descriptions to extract SPECIFIC improvements?
-✅ Have you eliminated ALL repetitive/duplicate statements?
-✅ Have you translated technical jargon into user benefits?
-✅ Have you grouped related improvements together with subsection headers (###)?
-✅ Does each bullet point explain WHAT changed, WHY it matters, and HOW it helps users?
-✅ Have you provided concrete examples and real-world scenarios?
-✅ Have you avoided vague statements like "general improvements"?
-✅ Is the content under 500 words (excluding Developer section)?
-✅ Have you added blank lines before and after ALL lists and headings?
-✅ Have you escaped square brackets in text that aren't links?
+IF YOU GENERATE GENERIC PHRASES OR REPETITIVE CONTENT, THE OUTPUT IS REJECTED.
+You must provide SPECIFIC, CONCRETE improvements extracted from the actual PR descriptions.
 
-REMEMBER: 
-- This is for EXTERNAL audiences - no internal jargon, PR details, or file paths
-- Focus on USER IMPACT with specific details, not generic statements
-- Each improvement should be unique and meaningful
-- Translate technical changes into benefits users will notice
+Now read the CONTEXT DATA below and produce the final Markdown post.
+
+===== CONTEXT DATA =====
 - Developer section: Work item IDs only, no PR titles
 "@
 

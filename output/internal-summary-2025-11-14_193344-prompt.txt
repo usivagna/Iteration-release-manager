@@ -1,154 +1,95 @@
-﻿Based on the provided Azure DevOps work item and pull request data, create a structured technical progress report for engineering leadership.
+﻿You are generating an internal engineering iteration summary from Azure DevOps data.
 
-TARGET AUDIENCE: Engineering managers, technical leads, and leadership
-TONE: Professional, concise, engineering-focused with active voice
-PURPOSE: Progress report for iteration 2510
+CONTEXT: After this prompt you'll see "===== CONTEXT DATA =====" followed by:
+- Iteration name and date range
+- A flat text listing of Work Items with Pull Requests, including PR titles, descriptions, repo, area path
 
-REQUIRED STRUCTURE:
+TASK
+Create a concise, executive-ready Markdown document where section headings are **derived dynamically** from the PRs and work items providedâ€”no hardcoded headings.
 
-# [Main Component Areas in Parentheses]
+AUDIENCE
+Engineering managers and technical leadership.
 
-Start with a header that lists the main technical areas covered, e.g.:
-"Buses (Input, Low Power Buses, USB) & Windows Driver Frameworks (WDF)"
+TONE
+Professional, concise, action-oriented; use active voice and plain technical English.
 
-Analyze the area paths in the work item data to determine the specific component areas.
+OUTPUT FORMAT (Markdown only; no front-matter, no extra commentary)
 
-## Iteration 2510 Summary
+# Buses (Input, Low Power Buses, USB) & Windows Driver Frameworks (WDF)
 
-**Period:** 2025-09-29T00:00:00Z to 2025-11-02T00:00:00Z
+**Period:** [iteration start date] to [iteration end date]
 
-### Overview
+## Executive Overview
+2â€“3 bullets (1â€“2 lines each): scope, major themes, and notable deliveries for this iteration.
 
-Write ONE introductory paragraph (3-5 sentences) that summarizes:
-- Overall engagement scope and progress for this iteration
-- Total work items/PRs completed with breakdown by type
-- Major themes identified from the data (e.g., platform defects, partner collaboration, feature enablement, security hardening)
-- High-level impact on reliability, performance, or security
+## [Dynamic Topic Section Name]
+**Dynamic topic sections** (H2) generated from the PRs/work items you analyze:
+- Derive topic names by clustering PR titles/descriptions/area paths.
+- Use up to 5 sections, ordered by impact (first) then count.
+- Include 3â€“6 bullets per section.
+- Each bullet: WHAT changed (specific), WHY it matters (impact), optionally WHERE (component).
 
-Example tone: "This iteration focused on [X] platform defects, [Y] partner engagements, and [Z] strategic initiatives. We completed [N] work items across USB, I3C, and WDF components, with emphasis on [major theme]. Key deliverables include [highlight 1-2 major items]."
+## Key Accomplishments
+Bulleted list (4â€“6 items): one-liners that surface the highest-value work; each ends with a short "why it matters".
 
----
+## Risks / Blocks / Next Steps _(optional)_
+3â€“5 bullets, only if explicitly evidenced in the context (shipping notes, follow-ups, validation plans). Do **not** invent.
 
-## Major Initiatives & Technical Progress
+## Release & Delivery Notes
+Bullets that pull concrete delivery signals (e.g., "CD 2601/2602", "EnabledByDefault", "AlwaysEnabled/Disabled", branch mentions). Summarize succinctly.
 
-For each significant technical initiative found in the PR data, create a subsection with:
+DYNAMIC TOPIC DISCOVERY (strict rules)
+- Build topics by clustering on these signals (union, not intersection):
+  â€¢ Area path leaf (e.g., Buses, Sensors)
+  â€¢ Repository names (e.g., USBXHCI, UCX, usbhub3, WDF)
+  â€¢ Keywords in PR titles/descriptions
+- Use this mapping to normalize topic **labels** (examples, not exhaustive):
+  â€¢ /(usb4|usb3|type[- ]c|ucx|xhci|usbhub3|ucm(cx)?)/i â†’ "USB & USB4"
+  â€¢ /(i3c|hidi3c|wini3c|supermitt)/i â†’ "I3C (Low Power Bus)"
+  â€¢ /(wdf|kmdf|umdf|netcx|hlk|driver verifier)/i â†’ "WDF & Frameworks"
+  â€¢ /(des|display enhancements|brightness|sensors)/i â†’ "Power & Sensors"
+  â€¢ /(telemetry|diagnostics|logging)/i â†’ "Diagnostics & Observability"
+  â€¢ /(uma|security|hardening|cfg)/i â†’ "Security Hardening"
+  â€¢ /(drips|c[- ]states|power|latency|performance)/i â†’ "Power & Performance"
+- If a cluster has < 2 concrete items, merge it into "Other Platform Improvements".
+- Prefer the **most specific** normalized label that matches the majority of items in the cluster.
 
-### [Initiative Name] (e.g., "DMA Support for UMDF Drivers", "I3C Platform Adoption", "Rust Integration for WDF")
+WHAT TO EXTRACT FROM PR DATA
+- Concrete technical changes (algorithms, flags, interfaces, DDIs, tests)
+- Delivery levers (EnabledByDefault, AlwaysEnabled/Disabled, CFRs, backports/branches)
+- Validation signals (HLK/tests run, partner validation, perf/compat checks)
+- Partner/Platform scope (Intel/AMD/QC/Surface/DIS)
 
-**Background & Context:**
-- Why this initiative matters (business/technical drivers)
-- Goals and expected outcomes
-- Any relevant standards, specifications, or partner dependencies
+STRICT CONTENT RULES
+- **No invention**: only use facts present in the context.
+- If a fact is uncertain, omit it.
+- Summaries must be **specific** (e.g., "captured secondary data to blame Tunnel/VPP for 0x15F DRIPS" > "improved reliability").
+- Use one sentence (two max) per bullet.
+- Do not list raw PR numbers in section headers; inside bullets, format PR references as **PR #12345** (bold).
+- Use inline code for files/APIs/symbols (e.g., Usb4HostRouter.sys, WudfRd.sys, IOCTL_I3C_TARGET_RESET).
 
-**Current Iteration Progress:**
-- Specific technical actions completed (use PR descriptions)
-- Key implementations, discussions, or decisions made
-- Partnerships or collaborations (with OEMs, IHVs, or internal teams)
-- Technical challenges addressed
+MARKDOWN STYLE (enforced)
+- H1 (#) for the main title only
+- H2 (##) for all major sections (Executive Overview, dynamic topics, Key Accomplishments, Risks/Blocks, Release Notes)
+- NO H3 or deeper headings - keep it flat and scannable
+- Blank line before/after every heading and list.
+- Bullets start with a **bold focus** phrase, then a colon, then the summary.
+  Example: **USB4 DRIPS classification:** Captures tunnel/VPP secondary data to correctly assign blame; reduces misdiagnosis in GE/CD.
+- Where helpful, end a bullet with "*Why it matters:* â€¦" (short phrase).
+- Keep total length â‰ˆ 300â€“450 words (not counting PR refs formatted inline).
 
-**Next Steps:**
-- Ongoing investigations or follow-up work
-- Upcoming milestones or dependencies
-- Areas requiring attention
+QUALITY BAR (self-check before returning)
+- Are headings truly data-driven (not hardcoded)?
+- Are bullets specific and impact-oriented?
+- Are delivery signals (CD/branch/feature flags) summarized succinctly?
+- Is there zero invented content? If a section would be empty, omit it rather than inventing.
+- Are there no tables, images, or links unless present in context?
+- Does every list and heading follow the spacing rules above?
 
-ANALYZE THE PR DESCRIPTIONS to identify major initiatives. Look for:
-- Features spanning multiple PRs or work items
-- Strategic technical directions (new frameworks, security improvements, performance optimizations)
-- Partner-driven work (OEM/IHV engagements)
-- Platform improvements (test infrastructure, tooling, SDK updates)
+Now read the CONTEXT DATA below and produce the final Markdown.
 
----
+========== CONTEXT DATA =====
 
-## Technical Depth & Standards
-
-Throughout the document, include:
-- Specific technologies: USB ESS, eUSB2, USB4, I3C/I2C, Thunderbolt
-- Framework details: UMDF, KMDF, NetCx, WDF
-- Standards and compliance: WHCP, HLK, HIDI3C specifications
-- Architecture terms: DMA, IBI, power management (D-states), PCI-e
-- Security topics: UMA (usermode access), driver hardening, CFG
-
-Use technical acronyms and terminology appropriate for engineering leadership.
-
----
-
-## Delivery Highlights
-
-Provide bulleted lists organized by category:
-
-### Features & Capabilities Delivered
-
-- [Feature name]: [Brief technical description and benefit]
-- Include work item IDs in parentheses for reference
-
-### Bug Fixes & Reliability Improvements
-
-- [Component]: [What was fixed and impact]
-- Mention Watson failures resolved, crash fixes, stability improvements
-
-### CD Releases & Bundles
-
-- List any continuous delivery releases, bugfix bundles, or feature rollouts
-- Include version numbers or build identifiers if available
-
-### Test Infrastructure & Quality
-
-- Test coverage improvements, HLK updates, validation framework enhancements
-- Mention specific test scenarios added
-
-### Partner Engagements
-
-- OEM/IHV collaborations, device certifications, issue resolutions
-- Workarounds provided for partner-reported issues
-
----
-
-## Metrics Summary
-
-**Work Item Breakdown:**
-
-- Total completed: [N]
-- By type: [X] Bug fixes, [Y] Features, [Z] Tasks
-- By component: [breakdown by area path]
-
-**Pull Requests:**
-
-- Total merged: [N]
-- Repositories: [list key repos with counts]
-
-**Impact Areas:**
-
-- Reliability: [count of crash/stability fixes]
-- Security: [count of security-related work]
-- Performance: [count of optimization work]
-- Compliance: [count of certification/HLK work]
-
----
-
-## Notes
-
-This is an engineering progress report generated from Azure DevOps data for iteration 2510.
-
----
-
-**Generated: 2025-11-14 18:55:46** 
-
-CRITICAL INSTRUCTIONS:
-1. Analyze PR descriptions thoroughly to identify major technical initiatives
-2. Group related work items into coherent technical narratives
-3. Use active voice and emphasize impact (e.g., "Implemented X to improve Y by Z%")
-4. Include specific technical details, standards, and acronyms
-5. Structure should flow: Overview â†’ Initiatives â†’ Deliverables â†’ Metrics
-6. Each initiative section should have Background â†’ Progress â†’ Next Steps
-7. Use engineering terminology appropriate for technical leadership
-8. Quantify improvements where possible (e.g., "resolved 15 Watson failures")
-
-MARKDOWN FORMATTING RULES:
-- Add blank line before and after ALL lists
-- Add blank line before and after ALL headings (except document title)
-- Use **bold** not *italic* for emphasis in footer
-- Escape square brackets in text with backslash if not links: \[text\]
-- End file with single newline character
 
 ===== CONTEXT DATA =====
 Iteration: 2510
