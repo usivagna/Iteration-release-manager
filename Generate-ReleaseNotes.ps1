@@ -140,6 +140,7 @@ if (-not $targetIteration) {
 $iterationInfo = @{
     iterationId = $targetIteration.id
     iterationName = $targetIteration.name
+    iterationPath = $targetIteration.path
     startDate = $targetIteration.attributes.startDate
     endDate = $targetIteration.attributes.finishDate
     project = $ProjectName
@@ -163,9 +164,15 @@ $wiql = @"
 SELECT [System.Id], [System.Title], [System.WorkItemType], [System.State], [System.AreaPath], [System.Description]
 FROM WorkItems
 WHERE ($areaPathConditions)
+AND (
+    [System.IterationPath] UNDER '$($iterationInfo.iterationPath)'
+    OR (
+        [System.State] IN ('Closed', 'Done', 'Completed')
+        AND [Microsoft.VSTS.Common.ClosedDate] >= '$($iterationInfo.startDate)'
+        AND [Microsoft.VSTS.Common.ClosedDate] <= '$($iterationInfo.endDate)'
+    )
+)
 AND [System.State] IN ('Closed', 'Done', 'Completed')
-AND [Microsoft.VSTS.Common.ClosedDate] >= '$($iterationInfo.startDate)'
-AND [Microsoft.VSTS.Common.ClosedDate] <= '$($iterationInfo.endDate)'
 ORDER BY [System.Id]
 "@
 
@@ -323,7 +330,10 @@ $($_.description)
 
 **Pull Requests:**
 $(if ($_.pullRequests.Count -gt 0) {
-    ($_.pullRequests | ForEach-Object { "- PR #$($_.id): $($_.title) [$($_.repository)]" }) -join "`n"
+    ($_.pullRequests | ForEach-Object { 
+        $prDesc = if ($_.description) { "`n  *Description:* $($_.description)" } else { "" }
+        "- **PR #$($_.id):** $($_.title) [$($_.repository)]$prDesc"
+    }) -join "`n"
 } else {
     "No linked pull requests"
 })
@@ -352,7 +362,10 @@ $($_.description)
 
 **Pull Requests:**
 $(if ($_.pullRequests.Count -gt 0) {
-    ($_.pullRequests | ForEach-Object { "- PR #$($_.id): $($_.title) [$($_.repository)]" }) -join "`n"
+    ($_.pullRequests | ForEach-Object { 
+        $prDesc = if ($_.description) { "`n  *Description:* $($_.description)" } else { "" }
+        "- **PR #$($_.id):** $($_.title) [$($_.repository)]$prDesc"
+    }) -join "`n"
 } else {
     "No linked pull requests"
 })
