@@ -1,6 +1,14 @@
 # Test output directory
 test-output/
 
+# Generated output files (users should generate their own)
+output/*.md
+output/*.txt
+output/*.json
+
+# Keep example files
+!output/.gitkeep
+
 # PowerShell temporary files
 *.ps1xml
 
