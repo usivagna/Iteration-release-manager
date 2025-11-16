@@ -184,8 +184,8 @@ Write-Host ""
 # Step 2: Query work items that need cleanup
 Write-Host "Step 2: Querying work items that need cleanup..." -ForegroundColor Cyan
 
-# Task 1: Find closed items that should be assigned to this iteration
-Write-Host "  Task 1: Finding closed items within iteration dates..." -ForegroundColor Yellow
+# Task 1: Find closed items that should be assigned to correct iteration (all past iterations)
+Write-Host "  Task 1: Finding closed items with incorrect iteration paths..." -ForegroundColor Yellow
 
 $areaPathConditions = ($AreaPaths | ForEach-Object { "[System.AreaPath] UNDER '$_'" }) -join " OR "
 $wiql = @"
@@ -193,9 +193,7 @@ SELECT [System.Id], [System.Title], [System.WorkItemType], [System.State], [Syst
 FROM WorkItems
 WHERE ($areaPathConditions)
 AND [System.State] IN ('Closed', 'Done', 'Completed')
-AND [Microsoft.VSTS.Common.ClosedDate] >= '$($iterationInfo.startDate)'
-AND [Microsoft.VSTS.Common.ClosedDate] <= '$($iterationInfo.endDate)'
-AND [System.IterationPath] <> '$($iterationInfo.iterationPath)'
+AND [Microsoft.VSTS.Common.ClosedDate] <> ''
 ORDER BY [System.Id]
 "@
 
@@ -209,7 +207,7 @@ $wiqlResult = Invoke-ADORestAPI -Uri $wiqlUrl -Method POST -Body $wiqlQuery
 $itemsToUpdateIteration = @()
 if ($wiqlResult -and $wiqlResult.workItems) {
     $workItemIds = $wiqlResult.workItems | ForEach-Object { $_.id }
-    Write-Host "  Found $($workItemIds.Count) closed items with incorrect iteration path" -ForegroundColor Green
+    Write-Host "  Found $($workItemIds.Count) closed items to check" -ForegroundColor Gray
     
     # Get detailed work item information in batches to avoid URL length limits
     if ($workItemIds.Count -gt 0) {
@@ -225,17 +223,42 @@ if ($wiqlResult -and $wiqlResult.workItems) {
             
             if ($workItems -and $workItems.value) {
                 foreach ($wi in $workItems.value) {
-                    $itemsToUpdateIteration += @{
-                        id = $wi.id
-                        title = $wi.fields.'System.Title'
-                        type = $wi.fields.'System.WorkItemType'
-                        currentIterationPath = $wi.fields.'System.IterationPath'
-                        closedDate = $wi.fields.'Microsoft.VSTS.Common.ClosedDate'
+                    $closedDate = $wi.fields.'Microsoft.VSTS.Common.ClosedDate'
+                    $currentIterPath = $wi.fields.'System.IterationPath'
+                    
+                    if ($closedDate) {
+                        try {
+                            $closedDateTime = [DateTime]$closedDate
+                            
+                            # Find the iteration that contains the closed date
+                            $correctIteration = $iterations.value | Where-Object {
+                                $iterStart = [DateTime]$_.attributes.startDate
+                                $iterEnd = [DateTime]$_.attributes.finishDate
+                                $closedDateTime -ge $iterStart -and $closedDateTime -le $iterEnd
+                            } | Select-Object -First 1
+                            
+                            # If we found a matching iteration and it's different from current, add to update list
+                            if ($correctIteration -and $correctIteration.path -ne $currentIterPath) {
+                                $itemsToUpdateIteration += @{
+                                    id = $wi.id
+                                    title = $wi.fields.'System.Title'
+                                    type = $wi.fields.'System.WorkItemType'
+                                    currentIterationPath = $currentIterPath
+                                    correctIterationPath = $correctIteration.path
+                                    correctIterationName = $correctIteration.name
+                                    closedDate = $closedDate
+                                }
+                            }
+                        } catch {
+                            Write-Verbose "Could not parse closed date for work item $($wi.id): $closedDate"
+                        }
                     }
                 }
             }
         }
     }
+    
+    Write-Host "  Found $($itemsToUpdateIteration.Count) closed items with incorrect iteration path" -ForegroundColor Green
 } else {
     Write-Host "  No closed items found that need iteration path update" -ForegroundColor Gray
 }
@@ -572,7 +595,7 @@ if ($itemsToUpdateIteration.Count -gt 0) {
     foreach ($item in $itemsToUpdateIteration) {
         Write-Host "    [$($item.id)] $($item.title)" -ForegroundColor Gray
         Write-Host "      Current: $($item.currentIterationPath)" -ForegroundColor Gray
-        Write-Host "      New: $($iterationInfo.iterationPath)" -ForegroundColor Gray
+        Write-Host "      Correct: $($item.correctIterationPath) ($($item.correctIterationName))" -ForegroundColor Gray
         Write-Host "      Closed: $($item.closedDate)" -ForegroundColor Gray
         
         if (-not $DryRun) {
@@ -581,7 +604,7 @@ if ($itemsToUpdateIteration.Count -gt 0) {
                 @{
                     op = "add"
                     path = "/fields/System.IterationPath"
-                    value = $iterationInfo.iterationPath
+                    value = $item.correctIterationPath
                 },
                 @{
                     op = "add"
@@ -601,7 +624,7 @@ if ($itemsToUpdateIteration.Count -gt 0) {
                     title = $item.title
                     type = "IterationPath"
                     oldValue = $item.currentIterationPath
-                    newValue = $iterationInfo.iterationPath
+                    newValue = $item.correctIterationPath
                 }
             } else {
                 Write-Host "      ❌ Failed to update" -ForegroundColor Red
