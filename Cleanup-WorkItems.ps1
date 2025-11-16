@@ -169,6 +169,16 @@ $iterationInfo = @{
 Write-Host "Found iteration: $($iterationInfo.iterationName)" -ForegroundColor Green
 Write-Host "  Start: $($iterationInfo.startDate)" -ForegroundColor Gray
 Write-Host "  End: $($iterationInfo.endDate)" -ForegroundColor Gray
+
+# Use the OS backlog iteration for moving incomplete items
+$backlogIterationInfo = @{
+    iterationPath = "OS"
+    iterationName = "OS"
+}
+Write-Host "Backlog iteration for incomplete items: OS" -ForegroundColor Green
+
+Write-Host ""
+
 Write-Host ""
 
 # Step 2: Query work items that need cleanup
@@ -330,17 +340,99 @@ if ($pcWiqlResult -and $pcWiqlResult.workItemRelations) {
     Write-Host "  No parent-child relationships found" -ForegroundColor Gray
 }
 
+# Task 3: Find incomplete items in past iterations
+Write-Host "  Task 3: Finding incomplete items in past iterations..." -ForegroundColor Yellow
+
+$itemsToMoveToNext = @()
+if ($backlogIterationInfo) {
+    # Query for items that are not completed and have an iteration path set
+    # We'll filter for past iterations after getting the results
+    # Note: We don't exclude any specific iteration path in the query since we'll filter by end date
+    $incompleteWiql = @"
+SELECT [System.Id], [System.Title], [System.WorkItemType], [System.State], [System.AreaPath], [System.IterationPath], [System.Tags]
+FROM WorkItems
+WHERE ($areaPathConditions)
+AND [System.State] NOT IN ('Closed', 'Done', 'Completed', 'Removed')
+ORDER BY [System.IterationPath], [System.Id]
+"@
+
+    $incompleteQuery = @{
+        query = $incompleteWiql
+    }
+
+    $incompleteResult = Invoke-ADORestAPI -Uri $wiqlUrl -Method POST -Body $incompleteQuery
+    
+    if ($incompleteResult -and $incompleteResult.workItems) {
+        $incompleteIds = $incompleteResult.workItems | ForEach-Object { $_.id }
+        Write-Host "  Found $($incompleteIds.Count) potentially incomplete items with iteration paths set" -ForegroundColor Gray
+        
+        # Get detailed work item information in batches
+        if ($incompleteIds.Count -gt 0) {
+            $batchSize = 200
+            for ($i = 0; $i -lt $incompleteIds.Count; $i += $batchSize) {
+                $batchEnd = [Math]::Min($i + $batchSize - 1, $incompleteIds.Count - 1)
+                $batchIds = $incompleteIds[$i..$batchEnd]
+                $idsParam = $batchIds -join ","
+                
+                $workItemsUrl = "$baseUrl/$ProjectName/_apis/wit/workitems?ids=$idsParam&api-version=7.1-preview.3"
+                $workItems = Invoke-ADORestAPI -Uri $workItemsUrl
+                
+                if ($workItems -and $workItems.value) {
+                    foreach ($wi in $workItems.value) {
+                        $wiIterPath = $wi.fields.'System.IterationPath'
+                        $wiIterEnd = $null
+                        
+                        # Find the iteration end date for this work item's iteration
+                        $wiIter = $iterations.value | Where-Object { $_.path -eq $wiIterPath } | Select-Object -First 1
+                        if ($wiIter -and $wiIter.attributes.finishDate) {
+                            try {
+                                $wiIterEnd = [DateTime]$wiIter.attributes.finishDate
+                                
+                                # Only include if the iteration has ended (in the past)
+                                if ($wiIterEnd -lt $now) {
+                                $itemsToMoveToNext += @{
+                                    id = $wi.id
+                                    title = $wi.fields.'System.Title'
+                                    type = $wi.fields.'System.WorkItemType'
+                                    state = $wi.fields.'System.State'
+                                    currentIterationPath = $wiIterPath
+                                    iterationEndDate = $wiIterEnd
+                                    tags = $wi.fields.'System.Tags'
+                                }
+                            }
+                            } catch {
+                                # Skip items where date parsing fails
+                                Write-Verbose "Could not parse end date for iteration: $wiIterPath"
+                            }
+                        } else {
+                            # Skip items in iterations without an end date (likely backlog or undefined iterations)
+                            Write-Verbose "Skipping item $($wi.id) - iteration has no end date: $wiIterPath"
+                        }
+                    }
+                }
+            }
+        }
+        
+        Write-Host "  Found $($itemsToMoveToNext.Count) incomplete items that need to be moved" -ForegroundColor Green
+    } else {
+        Write-Host "  No incomplete items found in past iterations" -ForegroundColor Gray
+    }
+} else {
+    Write-Host "  No backlog iteration found - skipping incomplete items check" -ForegroundColor Gray
+}
+
 Write-Host ""
 
 # User confirmation before applying changes (unless in DryRun mode)
 if (-not $DryRun) {
-    $totalChanges = $itemsToUpdateIteration.Count + $itemsToUpdateRank.Count
+    $totalChanges = $itemsToUpdateIteration.Count + $itemsToUpdateRank.Count + $itemsToMoveToNext.Count
     
     if ($totalChanges -gt 0) {
         Write-Host "=== CONFIRMATION REQUIRED ===" -ForegroundColor Yellow
         Write-Host "You are about to make changes to Azure DevOps work items:" -ForegroundColor Yellow
         Write-Host "  - $($itemsToUpdateIteration.Count) items will have iteration path updated" -ForegroundColor Gray
         Write-Host "  - $($itemsToUpdateRank.Count) items will have rank updated" -ForegroundColor Gray
+        Write-Host "  - $($itemsToMoveToNext.Count) incomplete items will be moved to backlog" -ForegroundColor Gray
         Write-Host "  - Total: $totalChanges work items will be modified" -ForegroundColor Gray
         Write-Host ""
         Write-Host "Do you want to proceed with these changes? (Y/N): " -ForegroundColor Cyan -NoNewline
@@ -466,6 +558,57 @@ if ($itemsToUpdateRank.Count -gt 0) {
     }
 }
 
+# Move incomplete items to backlog
+if ($itemsToMoveToNext.Count -gt 0 -and $backlogIterationInfo) {
+    Write-Host "  Moving incomplete items to backlog ($($backlogIterationInfo.iterationName))..." -ForegroundColor Yellow
+    
+    foreach ($item in $itemsToMoveToNext) {
+        Write-Host "    [$($item.id)] $($item.title)" -ForegroundColor Gray
+        Write-Host "      Type: $($item.type) | State: $($item.state)" -ForegroundColor Gray
+        Write-Host "      Current: $($item.currentIterationPath)" -ForegroundColor Gray
+        Write-Host "      New: $($backlogIterationInfo.iterationPath)" -ForegroundColor Gray
+        Write-Host "      Iteration ended: $($item.iterationEndDate)" -ForegroundColor Gray
+        
+        if (-not $DryRun) {
+            # Create PATCH operation to move to next iteration and add comment
+            $patchDocument = @(
+                @{
+                    op = "add"
+                    path = "/fields/System.IterationPath"
+                    value = $backlogIterationInfo.iterationPath
+                },
+                @{
+                    op = "add"
+                    path = "/fields/System.History"
+                    value = "Ugan's AI agent moved this incomplete item from past iteration to backlog for triage."
+                }
+            )
+            
+            $updateUrl = "$baseUrl/$ProjectName/_apis/wit/workitems/$($item.id)?api-version=7.1-preview.3"
+            $result = Invoke-ADORestAPI -Uri $updateUrl -Method PATCH -Body $patchDocument
+            
+            if ($result) {
+                Write-Host "      ✅ Moved successfully" -ForegroundColor Green
+                $updatedCount++
+                $changeLog += @{
+                    id = $item.id
+                    title = $item.title
+                    type = "MoveToBacklog"
+                    oldValue = $item.currentIterationPath
+                    newValue = $backlogIterationInfo.iterationPath
+                    state = $item.state
+                    workItemType = $item.type
+                }
+            } else {
+                Write-Host "      ❌ Failed to move" -ForegroundColor Red
+                $errorCount++
+            }
+        } else {
+            Write-Host "      [DRY RUN] Would move to backlog" -ForegroundColor Magenta
+        }
+    }
+}
+
 Write-Host ""
 
 # Step 4: Generate summary report
@@ -478,10 +621,13 @@ $report = @{
     iterationPath = $iterationInfo.iterationPath
     startDate = $iterationInfo.startDate
     endDate = $iterationInfo.endDate
+    nextIterationName = if ($backlogIterationInfo) { $backlogIterationInfo.iterationName } else { $null }
+    nextIterationPath = if ($backlogIterationInfo) { $backlogIterationInfo.iterationPath } else { $null }
     dryRun = $DryRun
     summary = @{
         itemsToUpdateIteration = $itemsToUpdateIteration.Count
         itemsToUpdateRank = $itemsToUpdateRank.Count
+        itemsToMoveToNext = $itemsToMoveToNext.Count
         totalUpdated = $updatedCount
         errors = $errorCount
     }
@@ -497,6 +643,10 @@ Write-Host "=== Cleanup Summary ===" -ForegroundColor Cyan
 Write-Host "Iteration: $($iterationInfo.iterationName)" -ForegroundColor Yellow
 Write-Host "  Items to update iteration path: $($itemsToUpdateIteration.Count)" -ForegroundColor Gray
 Write-Host "  Items to update rank: $($itemsToUpdateRank.Count)" -ForegroundColor Gray
+Write-Host "  Items to move to backlog: $($itemsToMoveToNext.Count)" -ForegroundColor Gray
+if ($backlogIterationInfo) {
+    Write-Host "  Backlog iteration: $($backlogIterationInfo.iterationName)" -ForegroundColor Gray
+}
 
 if (-not $DryRun) {
     Write-Host "  Total updated: $updatedCount" -ForegroundColor Green
