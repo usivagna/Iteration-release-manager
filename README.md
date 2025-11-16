@@ -23,9 +23,11 @@ This automation queries Azure DevOps for completed work items in a previous iter
 ## Prerequisites
 
 ### Required Tools
+
 - **PowerShell 5.1+** (Windows PowerShell or PowerShell Core)
 
 ### Azure DevOps Access
+
 - Access to the **OS** project in Azure DevOps
 - **Personal Access Token (PAT)** with the following scopes:
   - Work Items (Read)
@@ -37,6 +39,7 @@ This automation queries Azure DevOps for completed work items in a previous iter
   - Commit history
 
 ### Area Paths Covered
+
 - `OS\Core\Connectivity Platform\Buses`
 - `OS\Core\Connectivity Platform\Sensors`
 
@@ -44,7 +47,7 @@ This automation queries Azure DevOps for completed work items in a previous iter
 
 ### 1. Create Azure DevOps Personal Access Token (PAT)
 
-1. Go to https://dev.azure.com/[your-organization]/_usersSettings/tokens
+1. Go to <https://dev.azure.com/[your-organization]/_usersSettings/tokens>
 2. Click "New Token"
 3. Give it a descriptive name (e.g., "Release Notes Generator")
 4. Set expiration (recommended: 90 days or custom)
@@ -56,12 +59,14 @@ This automation queries Azure DevOps for completed work items in a previous iter
 ### 2. Configure Environment Variables
 
 **Option A: Set for current PowerShell session:**
+
 ```powershell
 $env:AZURE_DEVOPS_ORG = "your-organization-name"
 $env:AZURE_DEVOPS_PAT = "your-personal-access-token"
 ```
 
 **Option B: Set permanently (Windows):**
+
 ```powershell
 [Environment]::SetEnvironmentVariable("AZURE_DEVOPS_ORG", "your-organization-name", "User")
 [Environment]::SetEnvironmentVariable("AZURE_DEVOPS_PAT", "your-personal-access-token", "User")
@@ -74,6 +79,7 @@ $env:AZURE_DEVOPS_PAT = "your-personal-access-token"
 For better, audience-tailored summaries using GitHub Copilot:
 
 **Option A: Set GitHub Token (for future API integration):**
+
 ```powershell
 $env:GITHUB_TOKEN = "your-github-token"
 ```
@@ -90,6 +96,7 @@ The script generates `-prompt.txt` files alongside the summaries containing rich
 ```
 
 This will:
+
 1. Use environment variables for authentication
 2. Query the most recently completed iteration
 3. Collect all work items and PR descriptions
@@ -103,12 +110,14 @@ This will:
 ```
 
 The script will:
+
 1. Collect all data (iterations, work items, PRs with descriptions)
 2. Create AI prompts with full context from PR descriptions
 3. Save prompts to files for use with GitHub Copilot or other AI tools
 4. Fall back to enhanced templates if AI is not available
 
 The generated `-prompt.txt` files contain:
+
 - All work item details
 - Complete PR descriptions
 - Structured prompts for engineering managers and Windows Insiders
@@ -125,26 +134,31 @@ Uses enhanced templates that include PR descriptions directly in the output.
 ### Advanced Usage
 
 **Specify organization and PAT directly:**
+
 ```powershell
 .\Generate-ReleaseNotes.ps1 -Organization "myorg" -PAT "your-pat-here"
 ```
 
 **Use current iteration instead of previous:**
+
 ```powershell
 .\Generate-ReleaseNotes.ps1 -UseCurrentIteration
 ```
 
 **Target a specific iteration:**
+
 ```powershell
 .\Generate-ReleaseNotes.ps1 -SpecificIteration "2025.09 Sprint 3"
 ```
 
 **Custom output directory:**
+
 ```powershell
 .\Generate-ReleaseNotes.ps1 -OutputDir "C:\ReleaseNotes\2025-Q4"
 ```
 
 **Full example with all parameters:**
+
 ```powershell
 .\Generate-ReleaseNotes.ps1 `
     -Organization "microsoft" `
@@ -158,14 +172,18 @@ Uses enhanced templates that include PR descriptions directly in the output.
 ## How It Works
 
 ### Step 1: Query Iteration Information
+
 The script automatically:
+
 - Retrieves all team iterations from Azure DevOps
 - Identifies the previous completed iteration (or current/specific as requested)
 - Extracts iteration dates and metadata
 - Saves to `iteration-info.json`
 
 ### Step 2: Gather Work Items and PRs
+
 The script:
+
 - Builds a WIQL query to find completed work items
 - Filters by area paths (Buses and Sensors)
 - Only includes items in "Closed", "Done", or "Completed" state
@@ -175,7 +193,9 @@ The script:
 - Saves all data to `work-items-with-prs.json`
 
 ### Step 3: Generate Internal Summary
+
 The script creates a technical summary including:
+
 - Executive summary with counts and breakdown
 - Completed work items by component (Buses/Sensors)
 - Technical highlights (features and bugs)
@@ -185,7 +205,9 @@ The script creates a technical summary including:
 **Output**: `internal-summary-YYYY-MM-DD_HHmmss.md`
 
 ### Step 4: Generate Windows Insider Release Notes
+
 The script transforms the technical data into user-friendly release notes:
+
 - Overview of changes
 - New features (user-focused descriptions)
 - Improvements and bug fixes
@@ -198,7 +220,7 @@ The script transforms the technical data into user-friendly release notes:
 
 All generated files are saved in the `output` folder (or your specified output directory):
 
-```
+```text
 output/
 ├── iteration-info.json                      # Iteration metadata
 ├── work-items-with-prs.json                 # Raw data from ADO
@@ -213,27 +235,35 @@ output/
 1. **Create and configure your PAT** (see Setup section)
 2. **Open PowerShell**
 3. **Navigate to the repository**:
+
    ```powershell
    cd c:\path\to\Iteration-release-manager
    ```
+
 4. **Set environment variables** (if not already set):
+
    ```powershell
    $env:AZURE_DEVOPS_ORG = "your-org"
    $env:AZURE_DEVOPS_PAT = "your-pat"
    ```
+
 5. **Run the script**:
+
    ```powershell
    .\Generate-ReleaseNotes.ps1
    ```
+
 6. **Wait for completion** (usually takes 10-30 seconds depending on data volume)
 7. **Review generated files** in the `output` folder
 
 ### Regular Use (e.g., Every Sprint)
 
 1. **At the end of each iteration**, run the script:
+
    ```powershell
    .\Generate-ReleaseNotes.ps1
    ```
+
 2. The script automatically detects and processes the previous iteration
 3. Review and enhance the generated documentation
 4. Distribute to appropriate audiences
@@ -241,17 +271,20 @@ output/
 ## Tips and Best Practices
 
 ### For Best Results
+
 - **Run after iteration close**: Wait until work items are properly closed/completed
 - **Review PR descriptions**: Ensure PRs have good descriptions before running
 - **Verify area paths**: Confirm work items are tagged with correct area paths
 - **Edit generated content**: Always review and refine the generated summaries
 
 ### Performance
+
 - Script typically completes in **10-30 seconds** for normal iterations
 - Handles up to 200 work items in a single batch efficiently
 - Caches PR data to avoid duplicate API calls
 
 ### Security
+
 - **Never commit PAT to source control**
 - Use environment variables instead of command-line parameters when possible
 - Rotate PATs regularly (recommended: every 90 days)
@@ -260,48 +293,61 @@ output/
 ## Troubleshooting
 
 ### Issue: "Azure DevOps organization not specified"
+
 **Solution**: Set the `AZURE_DEVOPS_ORG` environment variable or pass `-Organization` parameter
 
 ### Issue: "Personal Access Token not specified"
+
 **Solution**: Set the `AZURE_DEVOPS_PAT` environment variable or pass `-PAT` parameter
 
 ### Issue: "No work items found"
+
 **Possible causes:**
+
 - Iteration dates are incorrect
 - Work items are not in "Closed/Done/Completed" state
 - Area paths don't match
 - You don't have read permissions
 
 **Solutions:**
+
 1. Verify the iteration dates in the generated `iteration-info.json`
 2. Check work item states in Azure DevOps
 3. Confirm area paths are correct in the script configuration
 4. Verify you have access to the OS project
 
 ### Issue: "No pull requests linked"
+
 **Possible causes:**
+
 - PRs are not properly linked to work items
 - You don't have access to the repositories
 
 **Solutions:**
+
 1. Ensure PRs are linked to work items in Azure DevOps
 2. Verify you have read access to the repositories
 3. Check that the PAT has "Code (Read)" scope
 
 ### Issue: "API call failed"
+
 **Possible causes:**
+
 - Invalid PAT
 - Network connectivity issues
 - Insufficient permissions
 
 **Solutions:**
+
 1. Verify your PAT is valid and not expired
 2. Check network connection to Azure DevOps
 3. Confirm PAT has required scopes
 4. Try regenerating the PAT
 
 ### Issue: "Script runs slowly"
+
 **Solutions:**
+
 - Reduce the number of work items (use specific iteration)
 - Check network latency to Azure DevOps
 - Consider running during off-peak hours
@@ -309,7 +355,9 @@ output/
 ## Customization
 
 ### Modifying Area Paths
+
 Edit lines 16-19 in `Generate-ReleaseNotes.ps1`:
+
 ```powershell
 $AreaPaths = @(
     "OS\Core\Connectivity Platform\Buses",
@@ -319,14 +367,18 @@ $AreaPaths = @(
 ```
 
 ### Changing Output Format
+
 The summary generation sections (Steps 3 and 4) can be customized:
+
 - Modify the markdown templates
 - Add or remove sections
 - Change formatting and structure
 - Adjust the level of detail
 
 ### Adding Custom Fields
+
 To include additional work item fields:
+
 1. Update the WIQL query in Step 2
 2. Add fields to the work item processing loop
 3. Update the summary templates to display the new fields
@@ -356,6 +408,7 @@ If you were using the previous version with GitHub Copilot:
 ## Azure DevOps REST API Reference
 
 This script uses the following Azure DevOps REST APIs:
+
 - [Iterations API](https://learn.microsoft.com/en-us/rest/api/azure/devops/work/iterations)
 - [Work Items API](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/work-items)
 - [WIQL API](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/wiql)
@@ -365,6 +418,7 @@ This script uses the following Azure DevOps REST APIs:
 ## Support and Feedback
 
 For issues or suggestions:
+
 1. Check the troubleshooting section above
 2. Review Azure DevOps permissions
 3. Verify PAT is valid and has correct scopes
@@ -377,34 +431,40 @@ In addition to release notes generation, this repository includes a work item cl
 ### Cleanup-WorkItems.ps1
 
 **Purpose**: Automatically clean up work items at the end of an iteration by:
+
 1. Assigning closed items to the respective iteration based on their closed date
 2. Updating the rank field of child items to match their parent item's rank
 
 **Key Features**:
+
 - ✅ **Dry Run Mode**: Preview changes before applying them
 - ✅ **Iteration-Aware**: Automatically finds the previous completed iteration
 - ✅ **Safe Updates**: Only updates items that need correction
 - ✅ **Detailed Reporting**: Generates JSON report of all changes
 
-### Usage
+### Cleanup Script Usage
 
 #### Dry Run (Recommended First)
+
 ```powershell
 .\Cleanup-WorkItems.ps1 -DryRun
 ```
 
 This will:
+
 1. Query the most recently completed iteration
 2. Identify work items that need cleanup
 3. Display what would be changed without making any actual updates
 4. Generate a report of potential changes
 
 #### Live Execution
+
 ```powershell
 .\Cleanup-WorkItems.ps1
 ```
 
 This will:
+
 1. Query the most recently completed iteration
 2. Display a summary of work items to be updated
 3. **Prompt for confirmation** before making any changes
@@ -414,24 +474,28 @@ This will:
 
 **Note**: The script will ask you to confirm (Y/N) before applying any changes to Azure DevOps. This safety feature ensures you review the changes before they are applied.
 
-#### Advanced Usage
+#### Cleanup Advanced Usage
 
-**Target specific iteration:**
+**Target specific iteration:****
+
 ```powershell
 .\Cleanup-WorkItems.ps1 -SpecificIteration "2025.09 Sprint 3" -DryRun
 ```
 
 **Use current iteration:**
+
 ```powershell
 .\Cleanup-WorkItems.ps1 -UseCurrentIteration
 ```
 
 **Custom output directory:**
+
 ```powershell
 .\Cleanup-WorkItems.ps1 -OutputDir "C:\WorkItemReports"
 ```
 
 **Full example with all parameters:**
+
 ```powershell
 .\Cleanup-WorkItems.ps1 `
     -Organization "microsoft" `
@@ -442,20 +506,23 @@ This will:
     -DryRun
 ```
 
-### Prerequisites
+### Cleanup Script Prerequisites
 
 Same as the release notes generator, plus:
+
 - **Personal Access Token (PAT)** must have **Work Items (Read & Write)** scope (not just Read)
 
 ### What Gets Cleaned Up
 
 #### Task 1: Iteration Path Assignment
+
 - Finds work items in "Closed", "Done", or "Completed" state
 - Checks if the closed date falls within the iteration start/end dates
 - Updates the iteration path if it doesn't match the correct iteration
 - Only affects items in the Buses and Sensors area paths
 
 #### Task 2: Rank Field Synchronization
+
 - Finds parent-child work item relationships
 - Compares the rank (StackRank) field of child items with their parents
 - Updates child items to match their parent's rank when different
@@ -464,12 +531,14 @@ Same as the release notes generator, plus:
 ### Output
 
 The script generates a JSON report in the output directory:
-```
+
+```text
 output/
 └── cleanup-report-2024-11-14_143022.json
 ```
 
 Report includes:
+
 - Iteration information
 - Count of items updated
 - List of all changes made (or would be made in dry run)
@@ -484,6 +553,7 @@ Before using the cleanup script, you can run the validation tests:
 ```
 
 This validates:
+
 - Script structure and parameters
 - API operation patterns
 - Error handling
@@ -498,18 +568,22 @@ This validates:
 4. **Keep the cleanup reports** for audit trail
 5. **Verify PAT has write permissions** before running live
 
-### Troubleshooting
+### Cleanup Script Troubleshooting
 
 #### Issue: "PAT does not have write permissions"
+
 **Solution**: Recreate your PAT with "Work Items (Read & Write)" scope
 
 #### Issue: "No items found that need cleanup"
+
 **Possible causes:**
+
 - Items are already correctly assigned
 - Work items are not in closed state
 - Closed dates are outside iteration boundaries
 
 **Solutions:**
+
 1. Verify iteration dates are correct
 2. Check work item states in Azure DevOps
 3. Confirm closed dates are within iteration period

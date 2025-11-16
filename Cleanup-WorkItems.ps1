@@ -81,7 +81,7 @@ function Invoke-ADORestAPI {
     )
     
     try {
-        $requestHeaders = if ($CustomHeaders) { $CustomHeaders } else { $script:headers }
+        $requestHeaders = if ($CustomHeaders) { $CustomHeaders.Clone() } else { $script:headers.Clone() }
         
         $params = @{
             Uri = $Uri
@@ -93,8 +93,10 @@ function Invoke-ADORestAPI {
             if ($Method -eq "PATCH") {
                 # For PATCH requests, body is already an array of operations
                 $params.Body = ($Body | ConvertTo-Json -Depth 10 -Compress)
+                $requestHeaders["Content-Type"] = "application/json-patch+json"
             } else {
                 $params.Body = ($Body | ConvertTo-Json -Depth 10)
+                $requestHeaders["Content-Type"] = "application/json"
             }
         }
         
@@ -199,20 +201,27 @@ if ($wiqlResult -and $wiqlResult.workItems) {
     $workItemIds = $wiqlResult.workItems | ForEach-Object { $_.id }
     Write-Host "  Found $($workItemIds.Count) closed items with incorrect iteration path" -ForegroundColor Green
     
-    # Get detailed work item information
+    # Get detailed work item information in batches to avoid URL length limits
     if ($workItemIds.Count -gt 0) {
-        $idsParam = $workItemIds -join ","
-        $workItemsUrl = "$baseUrl/$ProjectName/_apis/wit/workitems?ids=$idsParam&api-version=7.1-preview.3"
-        $workItems = Invoke-ADORestAPI -Uri $workItemsUrl
-        
-        if ($workItems -and $workItems.value) {
-            foreach ($wi in $workItems.value) {
-                $itemsToUpdateIteration += @{
-                    id = $wi.id
-                    title = $wi.fields.'System.Title'
-                    type = $wi.fields.'System.WorkItemType'
-                    currentIterationPath = $wi.fields.'System.IterationPath'
-                    closedDate = $wi.fields.'Microsoft.VSTS.Common.ClosedDate'
+        $batchSize = 200
+        for ($i = 0; $i -lt $workItemIds.Count; $i += $batchSize) {
+            $batchEnd = [Math]::Min($i + $batchSize - 1, $workItemIds.Count - 1)
+            $batchIds = $workItemIds[$i..$batchEnd]
+            $idsParam = $batchIds -join ","
+            
+            Write-Host "  Fetching work items batch $([Math]::Floor($i/$batchSize) + 1) of $([Math]::Ceiling($workItemIds.Count/$batchSize))..." -ForegroundColor Gray
+            $workItemsUrl = "$baseUrl/$ProjectName/_apis/wit/workitems?ids=$idsParam&api-version=7.1-preview.3"
+            $workItems = Invoke-ADORestAPI -Uri $workItemsUrl
+            
+            if ($workItems -and $workItems.value) {
+                foreach ($wi in $workItems.value) {
+                    $itemsToUpdateIteration += @{
+                        id = $wi.id
+                        title = $wi.fields.'System.Title'
+                        type = $wi.fields.'System.WorkItemType'
+                        currentIterationPath = $wi.fields.'System.IterationPath'
+                        closedDate = $wi.fields.'Microsoft.VSTS.Common.ClosedDate'
+                    }
                 }
             }
         }
@@ -371,12 +380,17 @@ if ($itemsToUpdateIteration.Count -gt 0) {
         Write-Host "      Closed: $($item.closedDate)" -ForegroundColor Gray
         
         if (-not $DryRun) {
-            # Create PATCH operation to update iteration path
+            # Create PATCH operation to update iteration path and add comment
             $patchDocument = @(
                 @{
                     op = "add"
                     path = "/fields/System.IterationPath"
                     value = $iterationInfo.iterationPath
+                },
+                @{
+                    op = "add"
+                    path = "/fields/System.History"
+                    value = "Ugan's AI agent updated this closed item to match the iteration it was closed in."
                 }
             )
             
@@ -414,12 +428,17 @@ if ($itemsToUpdateRank.Count -gt 0) {
         Write-Host "      Parent rank: $($item.parentRank)" -ForegroundColor Gray
         
         if (-not $DryRun) {
-            # Create PATCH operation to update rank
+            # Create PATCH operation to update rank and add comment
             $patchDocument = @(
                 @{
                     op = "add"
                     path = "/fields/Microsoft.VSTS.Common.StackRank"
                     value = $item.parentRank
+                },
+                @{
+                    op = "add"
+                    path = "/fields/System.History"
+                    value = "Ugan's AI agent updated this closed item to match the iteration it was closed in."
                 }
             )
             
