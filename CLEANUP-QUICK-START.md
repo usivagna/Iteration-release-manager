@@ -87,7 +87,25 @@ Once you're satisfied with the dry run results:
 .\Cleanup-WorkItems.ps1
 ```
 
-This will apply the changes and generate a detailed report.
+The script will:
+1. Display a summary of changes to be made
+2. **Prompt for confirmation** before applying any changes
+3. Wait for you to enter 'Y' to proceed or any other key to cancel
+4. Apply the changes only after confirmation
+5. Generate a detailed report
+
+Example confirmation prompt:
+```
+=== CONFIRMATION REQUIRED ===
+You are about to make changes to Azure DevOps work items:
+  - 15 items will have iteration path updated
+  - 8 items will have rank updated
+  - Total: 23 work items will be modified
+
+Do you want to proceed with these changes? (Y/N): 
+```
+
+**Important**: You must type `Y` (or `y`) and press Enter to proceed. Any other input will cancel the operation.
 
 ### 5. Review the Report
 
@@ -171,10 +189,11 @@ At the end of each sprint:
 ## Safety Features
 
 1. **Dry Run Mode**: Preview all changes before applying
-2. **Detailed Logging**: See exactly what's being changed and why
-3. **Error Handling**: Script continues even if individual updates fail
-4. **Audit Trail**: JSON report of all changes for compliance
-5. **Scoped Updates**: Only touches items in configured area paths (Buses, Sensors)
+2. **User Confirmation**: Prompts for explicit Y/N confirmation before applying changes in live mode
+3. **Detailed Logging**: See exactly what's being changed and why
+4. **Error Handling**: Script continues even if individual updates fail
+5. **Audit Trail**: JSON report of all changes for compliance
+6. **Scoped Updates**: Only touches items in configured area paths (Buses, Sensors)
 
 ## Troubleshooting
 

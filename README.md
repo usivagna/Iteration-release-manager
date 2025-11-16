@@ -406,9 +406,13 @@ This will:
 
 This will:
 1. Query the most recently completed iteration
-2. Update iteration paths for items closed within the iteration dates
-3. Update rank fields for child items to match their parents
-4. Generate a report of all changes made
+2. Display a summary of work items to be updated
+3. **Prompt for confirmation** before making any changes
+4. Update iteration paths for items closed within the iteration dates (after confirmation)
+5. Update rank fields for child items to match their parents (after confirmation)
+6. Generate a report of all changes made
+
+**Note**: The script will ask you to confirm (Y/N) before applying any changes to Azure DevOps. This safety feature ensures you review the changes before they are applied.
 
 #### Advanced Usage
 

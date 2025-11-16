@@ -323,6 +323,36 @@ if ($pcWiqlResult -and $pcWiqlResult.workItemRelations) {
 
 Write-Host ""
 
+# User confirmation before applying changes (unless in DryRun mode)
+if (-not $DryRun) {
+    $totalChanges = $itemsToUpdateIteration.Count + $itemsToUpdateRank.Count
+    
+    if ($totalChanges -gt 0) {
+        Write-Host "=== CONFIRMATION REQUIRED ===" -ForegroundColor Yellow
+        Write-Host "You are about to make changes to Azure DevOps work items:" -ForegroundColor Yellow
+        Write-Host "  - $($itemsToUpdateIteration.Count) items will have iteration path updated" -ForegroundColor Gray
+        Write-Host "  - $($itemsToUpdateRank.Count) items will have rank updated" -ForegroundColor Gray
+        Write-Host "  - Total: $totalChanges work items will be modified" -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "Do you want to proceed with these changes? (Y/N): " -ForegroundColor Cyan -NoNewline
+        
+        $confirmation = Read-Host
+        
+        if ($confirmation -ne 'Y' -and $confirmation -ne 'y') {
+            Write-Host ""
+            Write-Host "Operation cancelled by user." -ForegroundColor Yellow
+            Write-Host "No changes were made to Azure DevOps." -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "Tip: Use -DryRun to preview changes without confirmation prompts." -ForegroundColor Gray
+            exit 0
+        }
+        
+        Write-Host ""
+        Write-Host "Proceeding with changes..." -ForegroundColor Green
+        Write-Host ""
+    }
+}
+
 # Step 3: Apply changes
 Write-Host "Step 3: Applying changes..." -ForegroundColor Cyan
 
