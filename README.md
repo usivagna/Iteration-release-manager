@@ -370,12 +370,152 @@ For issues or suggestions:
 3. Verify PAT is valid and has correct scopes
 4. Contact your team's DevOps administrator
 
+## Work Item Cleanup Script
+
+In addition to release notes generation, this repository includes a work item cleanup script that helps engineering managers maintain clean work item data at the end of each iteration.
+
+### Cleanup-WorkItems.ps1
+
+**Purpose**: Automatically clean up work items at the end of an iteration by:
+1. Assigning closed items to the respective iteration based on their closed date
+2. Updating the rank field of child items to match their parent item's rank
+
+**Key Features**:
+- ✅ **Dry Run Mode**: Preview changes before applying them
+- ✅ **Iteration-Aware**: Automatically finds the previous completed iteration
+- ✅ **Safe Updates**: Only updates items that need correction
+- ✅ **Detailed Reporting**: Generates JSON report of all changes
+
+### Usage
+
+#### Dry Run (Recommended First)
+```powershell
+.\Cleanup-WorkItems.ps1 -DryRun
+```
+
+This will:
+1. Query the most recently completed iteration
+2. Identify work items that need cleanup
+3. Display what would be changed without making any actual updates
+4. Generate a report of potential changes
+
+#### Live Execution
+```powershell
+.\Cleanup-WorkItems.ps1
+```
+
+This will:
+1. Query the most recently completed iteration
+2. Update iteration paths for items closed within the iteration dates
+3. Update rank fields for child items to match their parents
+4. Generate a report of all changes made
+
+#### Advanced Usage
+
+**Target specific iteration:**
+```powershell
+.\Cleanup-WorkItems.ps1 -SpecificIteration "2025.09 Sprint 3" -DryRun
+```
+
+**Use current iteration:**
+```powershell
+.\Cleanup-WorkItems.ps1 -UseCurrentIteration
+```
+
+**Custom output directory:**
+```powershell
+.\Cleanup-WorkItems.ps1 -OutputDir "C:\WorkItemReports"
+```
+
+**Full example with all parameters:**
+```powershell
+.\Cleanup-WorkItems.ps1 `
+    -Organization "microsoft" `
+    -PAT "abc123..." `
+    -ProjectName "OS" `
+    -TeamName "ft_buses" `
+    -OutputDir ".\output" `
+    -DryRun
+```
+
+### Prerequisites
+
+Same as the release notes generator, plus:
+- **Personal Access Token (PAT)** must have **Work Items (Read & Write)** scope (not just Read)
+
+### What Gets Cleaned Up
+
+#### Task 1: Iteration Path Assignment
+- Finds work items in "Closed", "Done", or "Completed" state
+- Checks if the closed date falls within the iteration start/end dates
+- Updates the iteration path if it doesn't match the correct iteration
+- Only affects items in the Buses and Sensors area paths
+
+#### Task 2: Rank Field Synchronization
+- Finds parent-child work item relationships
+- Compares the rank (StackRank) field of child items with their parents
+- Updates child items to match their parent's rank when different
+- Helps maintain consistent prioritization across related work items
+
+### Output
+
+The script generates a JSON report in the output directory:
+```
+output/
+└── cleanup-report-2024-11-14_143022.json
+```
+
+Report includes:
+- Iteration information
+- Count of items updated
+- List of all changes made (or would be made in dry run)
+- Error count and details
+
+### Testing
+
+Before using the cleanup script, you can run the validation tests:
+
+```powershell
+.\Test-CleanupScript.ps1
+```
+
+This validates:
+- Script structure and parameters
+- API operation patterns
+- Error handling
+- Consistency with other scripts
+- Logging and reporting
+
+### Best Practices
+
+1. **Always run in dry run mode first** to preview changes
+2. **Review the dry run report** before executing live changes
+3. **Run at the end of each iteration** after all work items are closed
+4. **Keep the cleanup reports** for audit trail
+5. **Verify PAT has write permissions** before running live
+
+### Troubleshooting
+
+#### Issue: "PAT does not have write permissions"
+**Solution**: Recreate your PAT with "Work Items (Read & Write)" scope
+
+#### Issue: "No items found that need cleanup"
+**Possible causes:**
+- Items are already correctly assigned
+- Work items are not in closed state
+- Closed dates are outside iteration boundaries
+
+**Solutions:**
+1. Verify iteration dates are correct
+2. Check work item states in Azure DevOps
+3. Confirm closed dates are within iteration period
+
 ## License
 
 Internal use only for Microsoft teams.
 
 ---
 
-**Last Updated**: November 14, 2025
-**Version**: 2.0 (Fully Automated)
+**Last Updated**: November 16, 2025
+**Version**: 2.1 (Release Notes + Work Item Cleanup)
 **Maintained by**: Your Team
