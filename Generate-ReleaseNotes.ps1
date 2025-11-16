@@ -10,7 +10,7 @@ param(
     [string]$OutputDir = ".\output",
     [switch]$UseCurrentIteration = $false,
     [string]$SpecificIteration = "",
-    [switch]$UseAI = $true
+    [switch]$UseAI
 )
 
 # Configuration
@@ -83,6 +83,10 @@ function Invoke-ADORestAPI {
         
         if ($Body) {
             $params.Body = ($Body | ConvertTo-Json -Depth 10)
+            # Add Content-Type to headers instead of using ContentType parameter
+            # to ensure it works alongside Authorization header
+            $params.Headers = $headers.Clone()
+            $params.Headers["Content-Type"] = "application/json"
         }
         
         $response = Invoke-RestMethod @params
@@ -512,8 +516,8 @@ if (-not $UseAI) {
     # Filter to only include work items with PRs
     $workItemsWithPRs = $workItemsData.workItems | Where-Object { $_.pullRequests.Count -gt 0 }
     
-    # Helper function to clean HTML and format markdown properly
-    function Clean-MarkdownText {
+    # Helper function to format HTML and markdown properly
+    function Format-MarkdownText {
         param([string]$Text)
         if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
         
@@ -561,8 +565,8 @@ $busesItems = $workItemsWithPRs | Where-Object { $_.areaPath -like '*\Buses*' }
 if ($busesItems) {
     ($busesItems | ForEach-Object {
         $wi = $_
-        $cleanTitle = Clean-MarkdownText -Text $wi.title
-        $cleanDesc = Clean-MarkdownText -Text $wi.description
+        $cleanTitle = Format-MarkdownText -Text $wi.title
+        $cleanDesc = Format-MarkdownText -Text $wi.description
 @"
 **[$($wi.id)] $cleanTitle**
 
@@ -572,9 +576,9 @@ if ($busesItems) {
 - **Pull Requests:**
 $(($wi.pullRequests | ForEach-Object { 
     $pr = $_
-    $cleanPrTitle = Clean-MarkdownText -Text $pr.title
+    $cleanPrTitle = Format-MarkdownText -Text $pr.title
     $prDesc = if ($pr.description) { 
-        $cleanPrDesc = Clean-MarkdownText -Text $pr.description
+        $cleanPrDesc = Format-MarkdownText -Text $pr.description
         if ($cleanPrDesc) {
             # Remove heading punctuation issues
             $cleanPrDesc = $cleanPrDesc -replace '(##\s+[^?!]+)[.!?]+\s', '$1 '
@@ -606,8 +610,8 @@ $sensorsItems = $workItemsWithPRs | Where-Object { $_.areaPath -like '*\Sensors*
 if ($sensorsItems) {
     ($sensorsItems | ForEach-Object {
         $wi = $_
-        $cleanTitle = Clean-MarkdownText -Text $wi.title
-        $cleanDesc = Clean-MarkdownText -Text $wi.description
+        $cleanTitle = Format-MarkdownText -Text $wi.title
+        $cleanDesc = Format-MarkdownText -Text $wi.description
 @"
 **[$($wi.id)] $cleanTitle**
 
@@ -617,9 +621,9 @@ if ($sensorsItems) {
 - **Pull Requests:**
 $(($wi.pullRequests | ForEach-Object { 
     $pr = $_
-    $cleanPrTitle = Clean-MarkdownText -Text $pr.title
+    $cleanPrTitle = Format-MarkdownText -Text $pr.title
     $prDesc = if ($pr.description) { 
-        $cleanPrDesc = Clean-MarkdownText -Text $pr.description
+        $cleanPrDesc = Format-MarkdownText -Text $pr.description
         if ($cleanPrDesc) {
             # Remove heading punctuation issues
             $cleanPrDesc = $cleanPrDesc -replace '(##\s+[^?!]+)[.!?]+\s', '$1 '
@@ -705,27 +709,6 @@ $insiderNotesPath = Join-Path $OutputDir "insider-release-notes-$timestamp.md"
 if ($UseAI) {
     # Extract key themes and categories from PR descriptions dynamically
     $workItemsWithPRs = $workItemsData.workItems | Where-Object { $_.pullRequests.Count -gt 0 }
-    
-    $bugCount = ($workItemsWithPRs | Where-Object { $_.workItemType -eq "Bug" }).Count
-    $taskCount = ($workItemsWithPRs | Where-Object { $_.workItemType -eq "Task" }).Count
-    $featureCount = ($workItemsWithPRs | Where-Object { $_.workItemType -in @("User Story", "Feature") }).Count
-    
-    # Extract common themes from PR descriptions
-    $themes = @()
-    foreach ($item in $workItemsWithPRs) {
-        foreach ($pr in $item.pullRequests) {
-            if ($pr.description) {
-                # Look for key improvement areas
-                if ($pr.description -match "(?i)(usb|connectivity|device)") { $themes += "USB/Device Connectivity" }
-                if ($pr.description -match "(?i)(i3c|sensor)") { $themes += "I3C/Sensors" }
-                if ($pr.description -match "(?i)(reliability|crash|failure|watson)") { $themes += "System Reliability" }
-                if ($pr.description -match "(?i)(security|uma|usermode)") { $themes += "Security" }
-                if ($pr.description -match "(?i)(performance|optimization|speed)") { $themes += "Performance" }
-                if ($pr.description -match "(?i)(telemetry|diagnostics|logging)") { $themes += "Diagnostics" }
-            }
-        }
-    }
-    $uniqueThemes = $themes | Select-Object -Unique | Select-Object -First 5
     
     $aiPromptInsider = @"
 You are generating **Windows Insider** (EXTERNAL) release notes from Azure DevOps work item + PR context.
