@@ -421,11 +421,114 @@ ORDER BY [System.IterationPath], [System.Id]
     Write-Host "  No backlog iteration found - skipping incomplete items check" -ForegroundColor Gray
 }
 
+# Task 4: Find deliverables that should be marked as Completed
+Write-Host "  Task 4: Finding Started deliverables with all closed tasks (all iterations)..." -ForegroundColor Yellow
+
+$itemsToMarkCompleted = @()
+
+# Query for all deliverables in any iteration that are in "Started" state
+$deliverablesWiql = @"
+SELECT [System.Id], [System.Title], [System.WorkItemType], [System.State], [System.AreaPath], [System.IterationPath]
+FROM WorkItems
+WHERE ($areaPathConditions)
+AND [System.WorkItemType] IN ('Feature', 'Epic', 'User Story', 'Deliverable')
+AND [System.State] IN ('Active', 'In Progress', 'Started', 'Committed')
+ORDER BY [System.Id]
+"@
+
+$deliverablesQuery = @{
+    query = $deliverablesWiql
+}
+
+$deliverablesResult = Invoke-ADORestAPI -Uri $wiqlUrl -Method POST -Body $deliverablesQuery
+
+if ($deliverablesResult -and $deliverablesResult.workItems) {
+    $deliverableIds = $deliverablesResult.workItems | ForEach-Object { $_.id }
+    Write-Host "  Found $($deliverableIds.Count) potential deliverables in Started state" -ForegroundColor Gray
+    
+    # Get detailed work item information with relations
+    if ($deliverableIds.Count -gt 0) {
+        $batchSize = 200
+        for ($i = 0; $i -lt $deliverableIds.Count; $i += $batchSize) {
+            $batchEnd = [Math]::Min($i + $batchSize - 1, $deliverableIds.Count - 1)
+            $batchIds = $deliverableIds[$i..$batchEnd]
+            $idsParam = $batchIds -join ","
+            
+            Write-Host "  Fetching deliverables batch $([Math]::Floor($i/$batchSize) + 1) of $([Math]::Ceiling($deliverableIds.Count/$batchSize))..." -ForegroundColor Gray
+            $workItemsUrl = "$baseUrl/$ProjectName/_apis/wit/workitems?ids=$idsParam&`$expand=relations&api-version=7.1-preview.3"
+            $workItems = Invoke-ADORestAPI -Uri $workItemsUrl
+            
+            if ($workItems -and $workItems.value) {
+                foreach ($wi in $workItems.value) {
+                    # Get all child work items (tasks)
+                    $childIds = @()
+                    if ($wi.relations) {
+                        foreach ($relation in $wi.relations) {
+                            # Check for child relationships
+                            if ($relation.rel -eq "System.LinkTypes.Hierarchy-Forward") {
+                                # Extract ID from URL
+                                if ($relation.url -match '/(\d+)$') {
+                                    $childIds += [int]$matches[1]
+                                }
+                            }
+                        }
+                    }
+                    
+                    # If there are child items, check if all are closed
+                    if ($childIds.Count -gt 0) {
+                        # Get child work item details in batches if needed
+                        $allChildrenClosed = $true
+                        $childStates = @()
+                        
+                        $childBatchSize = 200
+                        for ($j = 0; $j -lt $childIds.Count; $j += $childBatchSize) {
+                            $childBatchEnd = [Math]::Min($j + $childBatchSize - 1, $childIds.Count - 1)
+                            $childBatchIds = $childIds[$j..$childBatchEnd]
+                            $childIdsParam = $childBatchIds -join ","
+                            $childWorkItemsUrl = "$baseUrl/$ProjectName/_apis/wit/workitems?ids=$childIdsParam&api-version=7.1-preview.3"
+                            $childWorkItems = Invoke-ADORestAPI -Uri $childWorkItemsUrl
+                            
+                            if ($childWorkItems -and $childWorkItems.value) {
+                                foreach ($child in $childWorkItems.value) {
+                                    $childState = $child.fields.'System.State'
+                                    $childStates += "$($child.id): $childState"
+                                    
+                                    # Check if child is not in a closed state
+                                    if ($childState -notin @('Closed', 'Done', 'Completed', 'Removed')) {
+                                        $allChildrenClosed = $false
+                                    }
+                                }
+                            }
+                        }
+                        
+                        # If all children are closed, this deliverable should be marked as Completed
+                        if ($allChildrenClosed) {
+                            $itemsToMarkCompleted += @{
+                                id = $wi.id
+                                title = $wi.fields.'System.Title'
+                                type = $wi.fields.'System.WorkItemType'
+                                state = $wi.fields.'System.State'
+                                iterationPath = $wi.fields.'System.IterationPath'
+                                childCount = $childIds.Count
+                                childStates = $childStates -join "; "
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Write-Host "  Found $($itemsToMarkCompleted.Count) deliverables to mark as Completed (across all iterations)" -ForegroundColor Green
+} else {
+    Write-Host "  No Started deliverables found in iteration" -ForegroundColor Gray
+}
+
 Write-Host ""
 
 # User confirmation before applying changes (unless in DryRun mode)
 if (-not $DryRun) {
-    $totalChanges = $itemsToUpdateIteration.Count + $itemsToUpdateRank.Count + $itemsToMoveToNext.Count
+    $totalChanges = $itemsToUpdateIteration.Count + $itemsToUpdateRank.Count + $itemsToMoveToNext.Count + $itemsToMarkCompleted.Count
     
     if ($totalChanges -gt 0) {
         Write-Host "=== CONFIRMATION REQUIRED ===" -ForegroundColor Yellow
@@ -433,6 +536,7 @@ if (-not $DryRun) {
         Write-Host "  - $($itemsToUpdateIteration.Count) items will have iteration path updated" -ForegroundColor Gray
         Write-Host "  - $($itemsToUpdateRank.Count) items will have rank updated" -ForegroundColor Gray
         Write-Host "  - $($itemsToMoveToNext.Count) incomplete items will be moved to backlog" -ForegroundColor Gray
+        Write-Host "  - $($itemsToMarkCompleted.Count) deliverables will be marked as Completed" -ForegroundColor Gray
         Write-Host "  - Total: $totalChanges work items will be modified" -ForegroundColor Gray
         Write-Host ""
         Write-Host "Do you want to proceed with these changes? (Y/N): " -ForegroundColor Cyan -NoNewline
@@ -609,6 +713,63 @@ if ($itemsToMoveToNext.Count -gt 0 -and $backlogIterationInfo) {
     }
 }
 
+# Mark deliverables with all closed tasks as Completed
+if ($itemsToMarkCompleted.Count -gt 0) {
+    Write-Host "  Marking deliverables with all closed tasks as Completed..." -ForegroundColor Yellow
+    
+    foreach ($item in $itemsToMarkCompleted) {
+        Write-Host "    [$($item.id)] $($item.title)" -ForegroundColor Gray
+        Write-Host "      Type: $($item.type) | State: $($item.state)" -ForegroundColor Gray
+        Write-Host "      Iteration: $($item.iterationPath)" -ForegroundColor Gray
+        Write-Host "      Children: $($item.childCount) (all closed)" -ForegroundColor Gray
+        
+        if (-not $DryRun) {
+            # Create PATCH operation to mark as Completed and add comment
+            $completionDate = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            $patchDocument = @(
+                @{
+                    op = "add"
+                    path = "/fields/System.State"
+                    value = "Completed"
+                },
+                @{
+                    op = "add"
+                    path = "/fields/System.History"
+                    value = "Ugan's AI agent marked this deliverable as Completed on $completionDate because all $($item.childCount) linked tasks are now closed."
+                },
+                @{
+                    op = "add"
+                    path = "/fields/OSG.Partner.PartnerNewComments"
+                    value = "Automated completion - all child tasks closed"
+                }
+            )
+            
+            $updateUrl = "$baseUrl/$ProjectName/_apis/wit/workitems/$($item.id)?api-version=7.1-preview.3"
+            $result = Invoke-ADORestAPI -Uri $updateUrl -Method PATCH -Body $patchDocument
+            
+            if ($result) {
+                Write-Host "      ✅ Marked as Completed successfully" -ForegroundColor Green
+                $updatedCount++
+                $changeLog += @{
+                    id = $item.id
+                    title = $item.title
+                    type = "MarkAsCompleted"
+                    oldValue = $item.state
+                    newValue = "Completed"
+                    workItemType = $item.type
+                    iterationPath = $item.iterationPath
+                    childCount = $item.childCount
+                }
+            } else {
+                Write-Host "      ❌ Failed to mark as Completed" -ForegroundColor Red
+                $errorCount++
+            }
+        } else {
+            Write-Host "      [DRY RUN] Would mark as Completed" -ForegroundColor Magenta
+        }
+    }
+}
+
 Write-Host ""
 
 # Step 4: Generate summary report
@@ -628,6 +789,7 @@ $report = @{
         itemsToUpdateIteration = $itemsToUpdateIteration.Count
         itemsToUpdateRank = $itemsToUpdateRank.Count
         itemsToMoveToNext = $itemsToMoveToNext.Count
+        itemsToMarkCompleted = $itemsToMarkCompleted.Count
         totalUpdated = $updatedCount
         errors = $errorCount
     }
@@ -644,6 +806,7 @@ Write-Host "Iteration: $($iterationInfo.iterationName)" -ForegroundColor Yellow
 Write-Host "  Items to update iteration path: $($itemsToUpdateIteration.Count)" -ForegroundColor Gray
 Write-Host "  Items to update rank: $($itemsToUpdateRank.Count)" -ForegroundColor Gray
 Write-Host "  Items to move to backlog: $($itemsToMoveToNext.Count)" -ForegroundColor Gray
+Write-Host "  Deliverables to mark as Completed: $($itemsToMarkCompleted.Count)" -ForegroundColor Gray
 if ($backlogIterationInfo) {
     Write-Host "  Backlog iteration: $($backlogIterationInfo.iterationName)" -ForegroundColor Gray
 }
