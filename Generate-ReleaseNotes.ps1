@@ -512,6 +512,32 @@ if (-not $UseAI) {
     # Filter to only include work items with PRs
     $workItemsWithPRs = $workItemsData.workItems | Where-Object { $_.pullRequests.Count -gt 0 }
     
+    # Helper function to clean HTML and format markdown properly
+    function Clean-MarkdownText {
+        param([string]$Text)
+        if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
+        
+        # Remove HTML tags
+        $cleaned = $Text -replace '<div[^>]*>', '' -replace '</div>', '' `
+                        -replace '<br\s*/?>', ' ' -replace '<span[^>]*>', '' -replace '</span>', '' `
+                        -replace '<b>', '**' -replace '</b>', '**' `
+                        -replace '<h\d[^>]*>', '' -replace '</h\d>', '' `
+                        -replace '<img[^>]*>', '' -replace '<ol[^>]*>', '' -replace '</ol>', '' `
+                        -replace '&nbsp;', ' ' -replace '&quot;', '"' -replace '&lt;', '<' -replace '&gt;', '>'
+        
+        # Remove hard tabs
+        $cleaned = $cleaned -replace "`t", '    '
+        
+        # Normalize whitespace
+        $cleaned = $cleaned -replace '\s+', ' '
+        $cleaned = $cleaned.Trim()
+        
+        # Fix emphasis style (underscores to asterisks for italic/bold)
+        $cleaned = $cleaned -replace '\b_([^_]+)_\b', '*$1*'
+        
+        return $cleaned
+    }
+
 $internalSummary = @"
 # Iteration Summary: $($iterationInfo.iterationName)
 
@@ -535,29 +561,35 @@ $busesItems = $workItemsWithPRs | Where-Object { $_.areaPath -like '*\Buses*' }
 if ($busesItems) {
     ($busesItems | ForEach-Object {
         $wi = $_
+        $cleanTitle = Clean-MarkdownText -Text $wi.title
+        $cleanDesc = Clean-MarkdownText -Text $wi.description
 @"
-**[$($wi.id)] $($wi.title)**
+**[$($wi.id)] $cleanTitle**
 
 - **Type:** $($wi.type)
 - **State:** $($wi.state)
-- **Description:** $($wi.description)
+- **Description:** $cleanDesc
 - **Pull Requests:**
 $(($wi.pullRequests | ForEach-Object { 
     $pr = $_
+    $cleanPrTitle = Clean-MarkdownText -Text $pr.title
     $prDesc = if ($pr.description) { 
-        # Clean up description and format as indented text block
-        $cleanDesc = $pr.description.Trim()
-        if ($cleanDesc) {
-            # Split by actual newlines and indent each line
-            $lines = $cleanDesc -split "`r`n|`r|`n"
-            "`n    **Repository:** $($pr.repository)`n`n    **Description:**`n`n" + ($lines | ForEach-Object { "    $_" }) -join "`n"
+        $cleanPrDesc = Clean-MarkdownText -Text $pr.description
+        if ($cleanPrDesc) {
+            # Remove heading punctuation issues
+            $cleanPrDesc = $cleanPrDesc -replace '(##\s+[^?!]+)[.!?]+\s', '$1 '
+            # Split by sentences and limit length
+            if ($cleanPrDesc.Length -gt 2000) {
+                $cleanPrDesc = $cleanPrDesc.Substring(0, 1997) + "..."
+            }
+            "`n    **Repository:** $($pr.repository)`n`n    **Description:**`n`n    $cleanPrDesc"
         } else {
             "`n    **Repository:** $($pr.repository)"
         }
     } else { 
         "`n    **Repository:** $($pr.repository)" 
     }
-    "  - **PR #$($pr.id):** $($pr.title)$prDesc"
+    "  - **PR #$($pr.id):** $cleanPrTitle$prDesc"
 }) -join "`n`n")
 
 "@
@@ -574,29 +606,35 @@ $sensorsItems = $workItemsWithPRs | Where-Object { $_.areaPath -like '*\Sensors*
 if ($sensorsItems) {
     ($sensorsItems | ForEach-Object {
         $wi = $_
+        $cleanTitle = Clean-MarkdownText -Text $wi.title
+        $cleanDesc = Clean-MarkdownText -Text $wi.description
 @"
-**[$($wi.id)] $($wi.title)**
+**[$($wi.id)] $cleanTitle**
 
 - **Type:** $($wi.type)
 - **State:** $($wi.state)
-- **Description:** $($wi.description)
+- **Description:** $cleanDesc
 - **Pull Requests:**
 $(($wi.pullRequests | ForEach-Object { 
     $pr = $_
+    $cleanPrTitle = Clean-MarkdownText -Text $pr.title
     $prDesc = if ($pr.description) { 
-        # Clean up description and format as indented text block
-        $cleanDesc = $pr.description.Trim()
-        if ($cleanDesc) {
-            # Split by actual newlines and indent each line
-            $lines = $cleanDesc -split "`r`n|`r|`n"
-            "`n    **Repository:** $($pr.repository)`n`n    **Description:**`n`n" + ($lines | ForEach-Object { "    $_" }) -join "`n"
+        $cleanPrDesc = Clean-MarkdownText -Text $pr.description
+        if ($cleanPrDesc) {
+            # Remove heading punctuation issues
+            $cleanPrDesc = $cleanPrDesc -replace '(##\s+[^?!]+)[.!?]+\s', '$1 '
+            # Split by sentences and limit length
+            if ($cleanPrDesc.Length -gt 2000) {
+                $cleanPrDesc = $cleanPrDesc.Substring(0, 1997) + "..."
+            }
+            "`n    **Repository:** $($pr.repository)`n`n    **Description:**`n`n    $cleanPrDesc"
         } else {
             "`n    **Repository:** $($pr.repository)"
         }
     } else { 
         "`n    **Repository:** $($pr.repository)" 
     }
-    "  - **PR #$($pr.id):** $($pr.title)$prDesc"
+    "  - **PR #$($pr.id):** $cleanPrTitle$prDesc"
 }) -join "`n`n")
 
 "@
