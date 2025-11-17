@@ -29,14 +29,25 @@ This automation queries Azure DevOps for completed work items in a previous iter
 ### Azure DevOps Access
 
 - Access to the **OS** project in Azure DevOps
-- **Personal Access Token (PAT)** with the following scopes:
-  - Work Items (Read)
+- Authentication via one of the following methods:
+  - **Azure DevOps CLI login (RECOMMENDED)**: More secure, no PAT handling
+  - **Personal Access Token (PAT)**: Handled as SecureString
+- Permissions required:
+  - Work Items (Read for Generate-ReleaseNotes.ps1, Read & Write for Cleanup-WorkItems.ps1)
   - Code (Read)
-- Permissions to read:
+- Access to:
   - Work items in the specified area paths
   - Team iterations
   - Pull requests
   - Commit history
+
+### Security Features
+
+- ✅ **SecureString PAT handling**: PAT is never stored or logged in plain text
+- ✅ **Azure CLI authentication**: Preferred method avoiding direct PAT handling
+- ✅ **Pre-flight permission checks**: Validates access before operations
+- ✅ **Network validation**: Optional Microsoft corp network check with -Force override
+- ✅ **No credential echoing**: Errors never expose authentication details
 
 ### Area Paths Covered
 
@@ -45,36 +56,73 @@ This automation queries Azure DevOps for completed work items in a previous iter
 
 ## Setup
 
-### 1. Create Azure DevOps Personal Access Token (PAT)
+### 1. Authentication Setup (Choose One Method)
 
-1. Go to <https://dev.azure.com/[your-organization]/_usersSettings/tokens>
-2. Click "New Token"
-3. Give it a descriptive name (e.g., "Release Notes Generator")
-4. Set expiration (recommended: 90 days or custom)
-5. Select scopes:
-   - **Work Items**: Read
-   - **Code**: Read
-6. Click "Create" and **copy the token** (you won't see it again!)
+#### Method A: Azure DevOps CLI (RECOMMENDED - Most Secure)
 
-### 2. Configure Environment Variables
+This method avoids handling PAT tokens directly:
 
-**Option A: Set for current PowerShell session:**
+1. **Install Azure CLI** (if not already installed):
+   ```powershell
+   # Using winget (Windows 11)
+   winget install Microsoft.AzureCLI
+   
+   # Or download from: https://aka.ms/installazurecliwindows
+   ```
 
-```powershell
-$env:AZURE_DEVOPS_ORG = "your-organization-name"
-$env:AZURE_DEVOPS_PAT = "your-personal-access-token"
-```
+2. **Install Azure DevOps extension**:
+   ```powershell
+   az extension add --name azure-devops
+   ```
 
-**Option B: Set permanently (Windows):**
+3. **Login to Azure**:
+   ```powershell
+   az login
+   ```
 
-```powershell
-[Environment]::SetEnvironmentVariable("AZURE_DEVOPS_ORG", "your-organization-name", "User")
-[Environment]::SetEnvironmentVariable("AZURE_DEVOPS_PAT", "your-personal-access-token", "User")
-```
+4. **Configure default organization**:
+   ```powershell
+   az devops configure --defaults organization=https://dev.azure.com/your-organization-name
+   ```
 
-**Option C: Pass as parameters** (see Usage section below)
+5. **Use the scripts with -UseAzDevOpsAuth flag**:
+   ```powershell
+   .\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth
+   .\Cleanup-WorkItems.ps1 -UseAzDevOpsAuth
+   ```
 
-### 3. (Optional) AI-Powered Generation
+#### Method B: Personal Access Token (PAT) as SecureString
+
+For scenarios where Azure CLI is not available:
+
+1. **Create a PAT**:
+   - Go to <https://dev.azure.com/[your-organization]/_usersSettings/tokens>
+   - Click "New Token"
+   - Give it a descriptive name (e.g., "Release Notes Generator")
+   - Set expiration (recommended: 90 days or custom)
+   - Select scopes:
+     - **Work Items**: Read (or Read & Write for Cleanup script)
+     - **Code**: Read
+   - Click "Create" and **copy the token** (you won't see it again!)
+
+2. **Set as environment variable**:
+   ```powershell
+   # For current session
+   $env:AZURE_DEVOPS_ORG = "your-organization-name"
+   $env:AZURE_DEVOPS_PAT = "your-personal-access-token"
+   
+   # Or permanently (Windows)
+   [Environment]::SetEnvironmentVariable("AZURE_DEVOPS_ORG", "your-organization-name", "User")
+   [Environment]::SetEnvironmentVariable("AZURE_DEVOPS_PAT", "your-personal-access-token", "User")
+   ```
+
+3. **Or pass as SecureString parameter**:
+   ```powershell
+   $secPat = ConvertTo-SecureString 'your-pat' -AsPlainText -Force
+   .\Generate-ReleaseNotes.ps1 -PAT $secPat
+   ```
+
+### 2. (Optional) AI-Powered Generation
 
 For better, audience-tailored summaries using GitHub Copilot:
 
@@ -99,14 +147,36 @@ This will:
 
 1. Use environment variables for authentication
 2. Query the most recently completed iteration
-3. Collect all work items and PR descriptions
-4. Generate enhanced summaries with PR details (template-based by default)
-5. Create AI prompt files for optional AI-powered generation
+### Basic Usage with Azure CLI (Recommended)
+
+```powershell
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth
+```
+
+This will:
+
+1. Use your Azure DevOps CLI authentication context (no PAT handling)
+2. Perform pre-flight permission check
+3. Query the most recently completed iteration
+4. Collect all work items and PR descriptions
+5. Generate enhanced summaries with PR details (template-based by default)
+6. Create AI prompt files for optional AI-powered generation
+
+### Basic Usage with PAT (Environment Variable)
+
+```powershell
+# Set environment variable once
+$env:AZURE_DEVOPS_ORG = "your-org"
+$env:AZURE_DEVOPS_PAT = "your-pat"
+
+# Run the script
+.\Generate-ReleaseNotes.ps1
+```
 
 ### AI-Powered Generation (Default)
 
 ```powershell
-.\Generate-ReleaseNotes.ps1 -UseAI
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -UseAI
 ```
 
 The script will:
@@ -126,29 +196,42 @@ The generated `-prompt.txt` files contain:
 ### Template-Based Generation Only
 
 ```powershell
-.\Generate-ReleaseNotes.ps1 -UseAI:$false
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -UseAI:$false
 ```
 
 Uses enhanced templates that include PR descriptions directly in the output.
 
 ### Advanced Usage
 
-**Specify organization and PAT directly:**
+**Using Azure CLI authentication (most secure):**
 
 ```powershell
-.\Generate-ReleaseNotes.ps1 -Organization "myorg" -PAT "your-pat-here"
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth
+```
+
+**Using PAT as SecureString:**
+
+```powershell
+$secPat = ConvertTo-SecureString 'your-pat' -AsPlainText -Force
+.\Generate-ReleaseNotes.ps1 -Organization "myorg" -PAT $secPat
+```
+
+**Override network check (use with caution):**
+
+```powershell
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -Force
 ```
 
 **Use current iteration instead of previous:**
 
 ```powershell
-.\Generate-ReleaseNotes.ps1 -UseCurrentIteration
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -UseCurrentIteration
 ```
 
 **Target a specific iteration:**
 
 ```powershell
-.\Generate-ReleaseNotes.ps1 -SpecificIteration "2025.09 Sprint 3"
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -SpecificIteration "2025.09 Sprint 3"
 ```
 
 **Custom output directory:**
@@ -283,12 +366,39 @@ output/
 - Handles up to 200 work items in a single batch efficiently
 - Caches PR data to avoid duplicate API calls
 
-### Security
+### Security Best Practices
 
-- **Never commit PAT to source control**
-- Use environment variables instead of command-line parameters when possible
-- Rotate PATs regularly (recommended: every 90 days)
-- Use minimal required scopes (Read-only)
+#### Authentication
+- **PREFER Azure CLI authentication** (`-UseAzDevOpsAuth`): Most secure, no direct credential handling
+- **PAT handling**: Always use SecureString type, never plain text
+- **Never commit credentials**: Don't store PATs in scripts or source control
+- **Environment variables**: Use for convenience, but be aware they can be accessed by other processes
+- **Rotate credentials**: Change PATs every 90 days or per your organization's policy
+- **Minimal scopes**: Only grant required permissions (Read for Generate, Read & Write for Cleanup)
+
+#### Network Security
+- **Corp network check**: Script validates Microsoft corp network by default
+- **Override with caution**: Use `-Force` only when you have verified authentication
+- **No credential logging**: The scripts never echo PATs or auth tokens in output or logs
+- **Error messages**: Generic error messages prevent credential exposure
+
+#### Data Protection
+- **SecureString in memory**: PATs converted from SecureString are immediately cleared after use
+- **No plain text storage**: Credentials are never written to disk in plain text
+- **Output files**: Generated JSON and MD files contain no authentication data
+- **Memory cleanup**: Sensitive variables are explicitly removed after use
+
+### Security Checklist
+
+Before running the scripts:
+
+- [ ] Use Azure CLI authentication when possible (`-UseAzDevOpsAuth`)
+- [ ] If using PAT, pass as SecureString or use environment variable
+- [ ] Verify you're on Microsoft corp network (or use `-Force` with proper auth)
+- [ ] Confirm you have minimum required permissions
+- [ ] Review output files to ensure no sensitive data is logged
+- [ ] Rotate PATs regularly
+- [ ] Never commit credentials to source control
 
 ## Troubleshooting
 
@@ -296,9 +406,57 @@ output/
 
 **Solution**: Set the `AZURE_DEVOPS_ORG` environment variable or pass `-Organization` parameter
 
-### Issue: "Personal Access Token not specified"
+### Issue: "Azure DevOps authentication not configured"
 
-**Solution**: Set the `AZURE_DEVOPS_PAT` environment variable or pass `-PAT` parameter
+**Solutions**:
+1. **Recommended**: Use Azure CLI authentication:
+   ```powershell
+   az login
+   az devops configure --defaults organization=https://dev.azure.com/your-org
+   .\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth
+   ```
+
+2. Set PAT environment variable:
+   ```powershell
+   $env:AZURE_DEVOPS_PAT = "your-pat"
+   ```
+
+3. Pass PAT as SecureString:
+   ```powershell
+   $secPat = ConvertTo-SecureString 'your-pat' -AsPlainText -Force
+   .\Generate-ReleaseNotes.ps1 -PAT $secPat
+   ```
+
+### Issue: "Not running in Microsoft corp network context"
+
+**Solutions**:
+1. Connect to Microsoft corp network (VPN or physical connection)
+2. Use `-Force` parameter to override the check (only if you have proper authentication)
+   ```powershell
+   .\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -Force
+   ```
+
+### Issue: "Permission check failed"
+
+**Possible causes:**
+- Insufficient permissions in Azure DevOps
+- Invalid or expired credentials
+- Project doesn't exist or you don't have access
+
+**Solutions**:
+1. Verify you have the required permissions:
+   - Work Items: Read (or Read & Write for Cleanup script)
+   - Code: Read
+2. Check if your PAT or Azure CLI login is still valid
+3. Confirm you have access to the specified project in Azure DevOps
+4. Try re-authenticating:
+   ```powershell
+   # For Azure CLI
+   az login --force
+   
+   # For PAT
+   # Generate a new PAT and update environment variable
+   ```
 
 ### Issue: "No work items found"
 

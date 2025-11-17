@@ -6,11 +6,13 @@ param(
     [string]$ProjectName = "OS",
     [string]$TeamName = "ft_buses",
     [string]$Organization = "",
-    [string]$PAT = "",
+    [SecureString]$PAT = $null,
     [string]$OutputDir = ".\output",
     [switch]$UseCurrentIteration = $false,
     [string]$SpecificIteration = "",
-    [switch]$UseAI
+    [switch]$UseAI,
+    [switch]$UseAzDevOpsAuth = $false,
+    [switch]$Force = $false
 )
 
 # Configuration
@@ -33,6 +35,30 @@ if (-not (Test-Path $OutputDir)) {
 # Generate timestamp for output files
 $timestamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
 
+# Function to check if running in Microsoft corp network
+function Test-MicrosoftCorpNetwork {
+    try {
+        # Check for common Microsoft internal indicators
+        $domainName = (Get-WmiObject Win32_ComputerSystem).Domain
+        if ($domainName -like "*.microsoft.com" -or $domainName -like "*.corp.microsoft.com") {
+            return $true
+        }
+        
+        # Check for internal network connectivity
+        $testHost = "microsoft.com"
+        $pingResult = Test-Connection -ComputerName $testHost -Count 1 -Quiet -ErrorAction SilentlyContinue
+        if ($pingResult) {
+            # Additional checks could be added here for internal resources
+            return $true
+        }
+        
+        return $false
+    }
+    catch {
+        return $false
+    }
+}
+
 # Get Azure DevOps credentials from environment or parameters
 if ([string]::IsNullOrEmpty($Organization)) {
     $Organization = $env:AZURE_DEVOPS_ORG
@@ -43,25 +69,107 @@ if ([string]::IsNullOrEmpty($Organization)) {
     }
 }
 
-if ([string]::IsNullOrEmpty($PAT)) {
-    $PAT = $env:AZURE_DEVOPS_PAT
-    if ([string]::IsNullOrEmpty($PAT)) {
-        Write-Host "ERROR: Azure DevOps Personal Access Token (PAT) not specified!" -ForegroundColor Red
-        Write-Host "Please provide via -PAT parameter or set AZURE_DEVOPS_PAT environment variable" -ForegroundColor Yellow
-        Write-Host ""
-        Write-Host "To create a PAT:" -ForegroundColor Cyan
-        Write-Host "1. Go to https://dev.azure.com/$Organization/_usersSettings/tokens" -ForegroundColor Gray
-        Write-Host "2. Create a new token with 'Work Items (Read)' and 'Code (Read)' scopes" -ForegroundColor Gray
-        Write-Host "3. Set it as environment variable: `$env:AZURE_DEVOPS_PAT = 'your-pat-here'" -ForegroundColor Gray
-        exit 1
+# Check if running in Microsoft corp network (optional check)
+$isMicrosoftNetwork = Test-MicrosoftCorpNetwork
+if (-not $isMicrosoftNetwork -and -not $Force) {
+    Write-Host "WARNING: Not running in Microsoft corp network context" -ForegroundColor Yellow
+    Write-Host "This script is designed for internal Microsoft use" -ForegroundColor Yellow
+    Write-Host "Use -Force to override this check if you have proper authentication" -ForegroundColor Yellow
+    Write-Host ""
+    exit 1
+}
+
+# Authentication setup - prefer az devops login context over PAT
+$headers = $null
+$useAzCli = $false
+
+if ($UseAzDevOpsAuth) {
+    Write-Host "Attempting to use Azure DevOps CLI authentication..." -ForegroundColor Cyan
+    try {
+        # Check if az devops extension is available
+        $azExtensions = az extension list 2>$null | ConvertFrom-Json
+        $hasAzDevOps = $azExtensions | Where-Object { $_.name -eq "azure-devops" }
+        
+        if ($hasAzDevOps) {
+            # Test if already logged in
+            $currentOrg = az devops configure --list 2>$null | Select-String "organization"
+            if ($currentOrg) {
+                Write-Host "✓ Using Azure DevOps CLI authentication context" -ForegroundColor Green
+                $useAzCli = $true
+                # For REST API calls, we'll get token from az CLI
+                $token = az account get-access-token --resource "499b84ac-1321-427f-aa17-267ca6975798" --query accessToken -o tsv 2>$null
+                if ($token) {
+                    $headers = @{
+                        "Authorization" = "Bearer $token"
+                        "Content-Type" = "application/json"
+                    }
+                }
+                else {
+                    Write-Host "WARNING: Could not get access token from az CLI, falling back to PAT" -ForegroundColor Yellow
+                    $useAzCli = $false
+                }
+            }
+            else {
+                Write-Host "Azure DevOps CLI not logged in. Please run: az login && az devops configure --defaults organization=https://dev.azure.com/$Organization" -ForegroundColor Yellow
+                $useAzCli = $false
+            }
+        }
+        else {
+            Write-Host "Azure DevOps CLI extension not found. Install with: az extension add --name azure-devops" -ForegroundColor Yellow
+            $useAzCli = $false
+        }
+    }
+    catch {
+        Write-Host "Failed to use Azure DevOps CLI authentication: $($_.Exception.Message)" -ForegroundColor Yellow
+        $useAzCli = $false
     }
 }
 
-# Create authorization header
-$encodedPAT = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(":$PAT"))
-$headers = @{
-    "Authorization" = "Basic $encodedPAT"
-    "Content-Type" = "application/json"
+# Fall back to PAT if az CLI not available or not requested
+if (-not $useAzCli) {
+    if ($null -eq $PAT -or $PAT.Length -eq 0) {
+        # Try to get from environment variable as SecureString
+        $patEnvVar = $env:AZURE_DEVOPS_PAT
+        if (-not [string]::IsNullOrEmpty($patEnvVar)) {
+            $PAT = ConvertTo-SecureString -String $patEnvVar -AsPlainText -Force
+            Write-Host "✓ Using PAT from environment variable" -ForegroundColor Green
+        }
+        else {
+            Write-Host "ERROR: Azure DevOps authentication not configured!" -ForegroundColor Red
+            Write-Host "Please use one of the following methods:" -ForegroundColor Yellow
+            Write-Host "  1. (RECOMMENDED) Use -UseAzDevOpsAuth and run: az login && az devops configure --defaults organization=https://dev.azure.com/$Organization" -ForegroundColor Cyan
+            Write-Host "  2. Pass PAT as SecureString: `$secPat = ConvertTo-SecureString 'your-pat' -AsPlainText -Force; .\Generate-ReleaseNotes.ps1 -PAT `$secPat" -ForegroundColor Cyan
+            Write-Host "  3. Set environment variable: `$env:AZURE_DEVOPS_PAT = 'your-pat'" -ForegroundColor Cyan
+            Write-Host ""
+            Write-Host "To create a PAT:" -ForegroundColor Cyan
+            Write-Host "  1. Go to https://dev.azure.com/$Organization/_usersSettings/tokens" -ForegroundColor Gray
+            Write-Host "  2. Create a new token with 'Work Items (Read)' and 'Code (Read)' scopes" -ForegroundColor Gray
+            exit 1
+        }
+    }
+    
+    # Convert SecureString to usable format for API (kept in memory, never logged)
+    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($PAT)
+    try {
+        $plainPAT = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+        $encodedPAT = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(":$plainPAT"))
+        $headers = @{
+            "Authorization" = "Basic $encodedPAT"
+            "Content-Type" = "application/json"
+        }
+    }
+    finally {
+        # Clear sensitive data from memory
+        [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
+        if ($plainPAT) {
+            Remove-Variable -Name plainPAT -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+if ($null -eq $headers) {
+    Write-Host "ERROR: Failed to configure authentication headers" -ForegroundColor Red
+    exit 1
 }
 
 $baseUrl = "https://dev.azure.com/$Organization"
@@ -94,10 +202,40 @@ function Invoke-ADORestAPI {
     }
     catch {
         Write-Host "ERROR calling API: $Uri" -ForegroundColor Red
-        Write-Host $_.Exception.Message -ForegroundColor Red
+        # Never log the actual error details as they might contain auth info
+        Write-Host "API call failed. Please verify your credentials and permissions." -ForegroundColor Red
         return $null
     }
 }
+
+# Pre-flight permission check
+Write-Host "Performing pre-flight permission check..." -ForegroundColor Cyan
+try {
+    # Check if user has work item read permissions using a test query
+    $permissionTestUrl = "$baseUrl/$ProjectName/_apis/wit/wiql?api-version=7.1-preview.2"
+    $testQuery = @{
+        query = "SELECT [System.Id] FROM WorkItems WHERE [System.Id] = 1"
+    }
+    
+    $permissionTest = Invoke-ADORestAPI -Uri $permissionTestUrl -Method POST -Body $testQuery
+    
+    if ($null -eq $permissionTest) {
+        Write-Host "ERROR: Permission check failed!" -ForegroundColor Red
+        Write-Host "You may not have the required permissions to read work items in project '$ProjectName'" -ForegroundColor Yellow
+        Write-Host "Required permissions:" -ForegroundColor Yellow
+        Write-Host "  - Work Items: Read" -ForegroundColor Gray
+        Write-Host "  - Code: Read" -ForegroundColor Gray
+        exit 1
+    }
+    
+    Write-Host "✓ Permission check passed - you have required access to work items" -ForegroundColor Green
+}
+catch {
+    Write-Host "ERROR: Pre-flight permission check failed!" -ForegroundColor Red
+    Write-Host "Please verify you have 'Work Items (Read)' permission in project '$ProjectName'" -ForegroundColor Yellow
+    exit 1
+}
+Write-Host ""
 
 # Step 1: Get iteration information
 Write-Host "Step 1: Querying iteration information..." -ForegroundColor Cyan
