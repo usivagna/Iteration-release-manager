@@ -55,12 +55,23 @@ $env:AZURE_DEVOPS_ORG = "your-org"
 ### Step 6: Run the Scripts
 
 ```powershell
-# Generate release notes
+# If on Microsoft corp network:
 .\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth
 
-# Clean up work items
+# If NOT on Microsoft corp network (add -Force flag):
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -Force
+
+# Clean up work items (dry run first):
 .\Cleanup-WorkItems.ps1 -UseAzDevOpsAuth -DryRun
+
+# Or with -Force if not on corp network:
+.\Cleanup-WorkItems.ps1 -UseAzDevOpsAuth -Force -DryRun
 ```
+
+**Important:**
+- The `AZURE_DEVOPS_ORG` environment variable (from Step 5) is **required**
+- Use `-Force` flag if you're not on Microsoft corporate network
+- Make sure you're logged in with `az login` before running
 
 **✅ Advantages:**
 - No PAT management needed
@@ -159,8 +170,11 @@ This validates:
 ### Generate Release Notes for Previous Iteration
 
 ```powershell
-# Using Azure CLI (recommended)
+# Using Azure CLI (recommended) - on corp network
 .\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth
+
+# Using Azure CLI - NOT on corp network
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -Force
 
 # Using PAT from environment variable
 .\Generate-ReleaseNotes.ps1
@@ -169,7 +183,11 @@ This validates:
 ### Generate Release Notes for Specific Iteration
 
 ```powershell
+# On corp network
 .\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -SpecificIteration "2025.09 Sprint 3"
+
+# NOT on corp network
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -Force -SpecificIteration "2025.09 Sprint 3"
 ```
 
 ### Clean Up Work Items (Dry Run)
@@ -177,26 +195,37 @@ This validates:
 ```powershell
 # Always run dry run first to preview changes
 .\Cleanup-WorkItems.ps1 -UseAzDevOpsAuth -DryRun
+
+# Or with -Force if not on corp network
+.\Cleanup-WorkItems.ps1 -UseAzDevOpsAuth -Force -DryRun
 ```
 
 ### Clean Up Work Items (Live)
 
 ```powershell
-# After reviewing dry run results
+# After reviewing dry run results - on corp network
 .\Cleanup-WorkItems.ps1 -UseAzDevOpsAuth
-```
 
-### Override Network Check
-
-If you're authenticated but not on corp network:
-
-```powershell
-.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -Force
+# NOT on corp network
+.\Cleanup-WorkItems.ps1 -UseAzDevOpsAuth -Force
 ```
 
 ---
 
 ## Troubleshooting
+
+### "Azure DevOps organization not specified"
+
+**Cause:** Missing AZURE_DEVOPS_ORG environment variable
+
+**Solution:**
+```powershell
+# Set the environment variable
+$env:AZURE_DEVOPS_ORG = "your-org-name"
+
+# Then run the script again
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth
+```
 
 ### "Azure DevOps CLI not logged in"
 
@@ -204,6 +233,22 @@ If you're authenticated but not on corp network:
 ```powershell
 az login
 az devops configure --defaults organization=https://dev.azure.com/your-org
+```
+
+### "Could not get access token from az CLI"
+
+**Cause:** Azure CLI is installed but not logged in, or token expired
+
+**Solution:**
+```powershell
+# Re-login to Azure
+az login --force
+
+# Verify you can get a token
+az account get-access-token --resource "499b84ac-1321-427f-aa17-267ca6975798"
+
+# Then run the script again
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth
 ```
 
 ### "Permission check failed"
@@ -217,6 +262,8 @@ az devops configure --defaults organization=https://dev.azure.com/your-org
 4. For Cleanup: Need Work Items (Read & Write) and Code (Read)
 
 ### "Not running in Microsoft corp network context"
+
+**Cause:** Script detects you're not on Microsoft corporate network
 
 **Solutions:**
 1. Connect to Microsoft corp network (VPN)

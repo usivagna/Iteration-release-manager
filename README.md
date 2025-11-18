@@ -85,11 +85,28 @@ This method avoids handling PAT tokens directly:
    az devops configure --defaults organization=https://dev.azure.com/your-organization-name
    ```
 
-5. **Use the scripts with -UseAzDevOpsAuth flag**:
+5. **Set organization environment variable** (REQUIRED):
    ```powershell
-   .\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth
-   .\Cleanup-WorkItems.ps1 -UseAzDevOpsAuth
+   # For current session
+   $env:AZURE_DEVOPS_ORG = "your-organization-name"
+   
+   # Or permanently (Windows)
+   [Environment]::SetEnvironmentVariable("AZURE_DEVOPS_ORG", "your-organization-name", "User")
    ```
+
+6. **Run the scripts with -UseAzDevOpsAuth flag**:
+   ```powershell
+   # If on Microsoft corp network
+   .\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth
+   
+   # If NOT on Microsoft corp network (e.g., external with VPN)
+   .\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -Force
+   ```
+
+**Important Notes:**
+- The `AZURE_DEVOPS_ORG` environment variable is always required, even with Azure CLI auth
+- If you're not on Microsoft corp network, add the `-Force` flag to bypass the network check
+- Make sure you're logged in with `az login` before running the scripts
 
 #### Method B: Personal Access Token (PAT) as SecureString
 
@@ -137,20 +154,19 @@ The script generates `-prompt.txt` files alongside the summaries containing rich
 
 ## Usage
 
-### Basic Usage (Recommended)
-
-```powershell
-.\Generate-ReleaseNotes.ps1
-```
-
-This will:
-
-1. Use environment variables for authentication
-2. Query the most recently completed iteration
 ### Basic Usage with Azure CLI (Recommended)
 
+**Prerequisites:**
+- Azure CLI installed with azure-devops extension
+- Logged in with `az login`
+- `AZURE_DEVOPS_ORG` environment variable set
+
 ```powershell
+# On Microsoft corp network
 .\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth
+
+# NOT on Microsoft corp network (requires -Force)
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -Force
 ```
 
 This will:
@@ -216,40 +232,30 @@ $secPat = ConvertTo-SecureString 'your-pat' -AsPlainText -Force
 .\Generate-ReleaseNotes.ps1 -Organization "myorg" -PAT $secPat
 ```
 
-**Override network check (use with caution):**
-
-```powershell
-.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -Force
-```
-
 **Use current iteration instead of previous:**
 
 ```powershell
+# On corp network
 .\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -UseCurrentIteration
+
+# NOT on corp network
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -Force -UseCurrentIteration
 ```
 
 **Target a specific iteration:**
 
 ```powershell
+# On corp network
 .\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -SpecificIteration "2025.09 Sprint 3"
+
+# NOT on corp network
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -Force -SpecificIteration "2025.09 Sprint 3"
 ```
 
 **Custom output directory:**
 
 ```powershell
-.\Generate-ReleaseNotes.ps1 -OutputDir "C:\ReleaseNotes\2025-Q4"
-```
-
-**Full example with all parameters:**
-
-```powershell
-.\Generate-ReleaseNotes.ps1 `
-    -Organization "microsoft" `
-    -PAT "abc123..." `
-    -ProjectName "OS" `
-    -TeamName "ft_buses" `
-    -OutputDir ".\output" `
-    -SpecificIteration "2025.09 Sprint 3"
+.\Generate-ReleaseNotes.ps1 -UseAzDevOpsAuth -OutputDir "C:\ReleaseNotes\2025-Q4"
 ```
 
 ## How It Works
