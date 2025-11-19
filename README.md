@@ -25,13 +25,16 @@ This automation queries Azure DevOps for completed work items in a previous iter
 ### Required Tools
 
 - **PowerShell 5.1+** (Windows PowerShell or PowerShell Core)
+- **Azure CLI** (recommended for secure authentication)
 
 ### Azure DevOps Access
 
 - Access to the **OS** project in Azure DevOps
-- **Personal Access Token (PAT)** with the following scopes:
-  - Work Items (Read)
-  - Code (Read)
+- **Authentication** (choose one):
+  - **Option 1 (Recommended)**: Azure CLI authentication (`az login`)
+  - **Option 2**: Personal Access Token (PAT) with the following scopes:
+    - Work Items (Read)
+    - Code (Read)
 - Permissions to read:
   - Work items in the specified area paths
   - Team iterations
@@ -45,7 +48,44 @@ This automation queries Azure DevOps for completed work items in a previous iter
 
 ## Setup
 
-### 1. Create Azure DevOps Personal Access Token (PAT)
+### 1. Configure Azure DevOps Organization
+
+Set the organization name as an environment variable:
+
+```powershell
+$env:AZURE_DEVOPS_ORG = "your-organization-name"
+```
+
+Or set it permanently (Windows):
+
+```powershell
+[Environment]::SetEnvironmentVariable("AZURE_DEVOPS_ORG", "your-organization-name", "User")
+```
+
+### 2. Set Up Authentication
+
+**Option A: Azure CLI Authentication (Recommended)**
+
+This is the most secure method as it avoids storing credentials:
+
+1. Install Azure CLI if not already installed: <https://aka.ms/installazurecliwindows>
+2. Login to Azure:
+
+   ```powershell
+   az login
+   ```
+
+3. Configure Azure DevOps defaults:
+
+   ```powershell
+   az devops configure --defaults organization=https://dev.azure.com/your-organization-name
+   ```
+
+4. That's it! The scripts will automatically use your Azure CLI credentials.
+
+**Option B: Personal Access Token (PAT)**
+
+If Azure CLI is not available, you can use a PAT:
 
 1. Go to <https://dev.azure.com/[your-organization]/_usersSettings/tokens>
 2. Click "New Token"
@@ -55,24 +95,26 @@ This automation queries Azure DevOps for completed work items in a previous iter
    - **Work Items**: Read
    - **Code**: Read
 6. Click "Create" and **copy the token** (you won't see it again!)
+7. Set the PAT as an environment variable:
 
-### 2. Configure Environment Variables
+   ```powershell
+   # For current session only
+   $env:AZURE_DEVOPS_PAT = "your-personal-access-token"
+   
+   # Or set permanently (Windows)
+   [Environment]::SetEnvironmentVariable("AZURE_DEVOPS_PAT", "your-personal-access-token", "User")
+   ```
 
-**Option A: Set for current PowerShell session:**
+   **Security Note**: The PAT is now handled as a SecureString internally and never echoed to console or logs.
+
+**Option C: Pass PAT as SecureString Parameter**
+
+For maximum security, pass the PAT as a SecureString directly:
 
 ```powershell
-$env:AZURE_DEVOPS_ORG = "your-organization-name"
-$env:AZURE_DEVOPS_PAT = "your-personal-access-token"
+$securePAT = Read-Host -AsSecureString -Prompt "Enter PAT"
+.\Generate-ReleaseNotes.ps1 -PAT $securePAT
 ```
-
-**Option B: Set permanently (Windows):**
-
-```powershell
-[Environment]::SetEnvironmentVariable("AZURE_DEVOPS_ORG", "your-organization-name", "User")
-[Environment]::SetEnvironmentVariable("AZURE_DEVOPS_PAT", "your-personal-access-token", "User")
-```
-
-**Option C: Pass as parameters** (see Usage section below)
 
 ### 3. (Optional) AI-Powered Generation
 
@@ -97,7 +139,7 @@ The script generates `-prompt.txt` files alongside the summaries containing rich
 
 This will:
 
-1. Use environment variables for authentication
+1. Authenticate using Azure CLI (if logged in) or PAT from environment variable
 2. Query the most recently completed iteration
 3. Collect all work items and PR descriptions
 4. Generate enhanced summaries with PR details (template-based by default)
@@ -133,10 +175,17 @@ Uses enhanced templates that include PR descriptions directly in the output.
 
 ### Advanced Usage
 
-**Specify organization and PAT directly:**
+**Specify organization directly:**
 
 ```powershell
-.\Generate-ReleaseNotes.ps1 -Organization "myorg" -PAT "your-pat-here"
+.\Generate-ReleaseNotes.ps1 -Organization "myorg"
+```
+
+**Pass PAT as SecureString (most secure):**
+
+```powershell
+$securePAT = Read-Host -AsSecureString -Prompt "Enter PAT"
+.\Generate-ReleaseNotes.ps1 -Organization "myorg" -PAT $securePAT
 ```
 
 **Use current iteration instead of previous:**
@@ -160,9 +209,10 @@ Uses enhanced templates that include PR descriptions directly in the output.
 **Full example with all parameters:**
 
 ```powershell
+$securePAT = Read-Host -AsSecureString -Prompt "Enter PAT"
 .\Generate-ReleaseNotes.ps1 `
     -Organization "microsoft" `
-    -PAT "abc123..." `
+    -PAT $securePAT `
     -ProjectName "OS" `
     -TeamName "ft_buses" `
     -OutputDir ".\output" `
@@ -232,7 +282,7 @@ output/
 
 ### Running for the First Time
 
-1. **Create and configure your PAT** (see Setup section)
+1. **Set up authentication** (see Setup section above)
 2. **Open PowerShell**
 3. **Navigate to the repository**:
 
@@ -240,21 +290,28 @@ output/
    cd c:\path\to\Iteration-release-manager
    ```
 
-4. **Set environment variables** (if not already set):
+4. **If using Azure CLI (recommended)**:
+
+   ```powershell
+   az login
+   $env:AZURE_DEVOPS_ORG = "your-org"
+   ```
+
+5. **OR if using PAT**:
 
    ```powershell
    $env:AZURE_DEVOPS_ORG = "your-org"
    $env:AZURE_DEVOPS_PAT = "your-pat"
    ```
 
-5. **Run the script**:
+6. **Run the script**:
 
    ```powershell
    .\Generate-ReleaseNotes.ps1
    ```
 
-6. **Wait for completion** (usually takes 10-30 seconds depending on data volume)
-7. **Review generated files** in the `output` folder
+7. **Wait for completion** (usually takes 10-30 seconds depending on data volume)
+8. **Review generated files** in the `output` folder
 
 ### Regular Use (e.g., Every Sprint)
 
@@ -285,10 +342,13 @@ output/
 
 ### Security
 
+- **Use Azure CLI authentication when possible** for best security (no PAT storage required)
 - **Never commit PAT to source control**
-- Use environment variables instead of command-line parameters when possible
-- Rotate PATs regularly (recommended: every 90 days)
-- Use minimal required scopes (Read-only)
+- If using PAT:
+  - Use environment variables or SecureString parameters
+  - PAT is treated as SecureString internally and never echoed to console or logs
+  - Rotate PATs regularly (recommended: every 90 days)
+  - Use minimal required scopes (Read-only)
 
 ## Troubleshooting
 
@@ -296,9 +356,19 @@ output/
 
 **Solution**: Set the `AZURE_DEVOPS_ORG` environment variable or pass `-Organization` parameter
 
-### Issue: "Personal Access Token not specified"
+### Issue: "Authentication required"
 
-**Solution**: Set the `AZURE_DEVOPS_PAT` environment variable or pass `-PAT` parameter
+**Solution 1 (Recommended)**: Use Azure CLI authentication:
+```powershell
+az login
+az devops configure --defaults organization=https://dev.azure.com/your-org
+```
+
+**Solution 2**: Set the `AZURE_DEVOPS_PAT` environment variable or pass `-PAT` parameter as SecureString:
+```powershell
+$securePAT = Read-Host -AsSecureString -Prompt "Enter PAT"
+.\Generate-ReleaseNotes.ps1 -PAT $securePAT
+```
 
 ### Issue: "No work items found"
 
@@ -333,16 +403,18 @@ output/
 
 **Possible causes:**
 
-- Invalid PAT
+- Invalid or expired PAT
 - Network connectivity issues
 - Insufficient permissions
+- Azure CLI token expired
 
 **Solutions:**
 
-1. Verify your PAT is valid and not expired
-2. Check network connection to Azure DevOps
-3. Confirm PAT has required scopes
-4. Try regenerating the PAT
+1. If using Azure CLI: Run `az login` to refresh your token
+2. If using PAT: Verify your PAT is valid and not expired
+3. Check network connection to Azure DevOps
+4. Confirm PAT has required scopes (or Azure CLI user has permissions)
+5. Try regenerating the PAT if using PAT authentication
 
 ### Issue: "Script runs slowly"
 
@@ -497,9 +569,10 @@ This will:
 **Full example with all parameters:**
 
 ```powershell
+$securePAT = Read-Host -AsSecureString -Prompt "Enter PAT"
 .\Cleanup-WorkItems.ps1 `
     -Organization "microsoft" `
-    -PAT "abc123..." `
+    -PAT $securePAT `
     -ProjectName "OS" `
     -TeamName "ft_buses" `
     -OutputDir ".\output" `
@@ -511,6 +584,7 @@ This will:
 Same as the release notes generator, plus:
 
 - **Personal Access Token (PAT)** must have **Work Items (Read & Write)** scope (not just Read)
+  - Or use Azure CLI authentication with appropriate permissions
 
 ### What Gets Cleaned Up
 
@@ -572,7 +646,13 @@ This validates:
 
 #### Issue: "PAT does not have write permissions"
 
-**Solution**: Recreate your PAT with "Work Items (Read & Write)" scope
+**Solution 1**: Use Azure CLI authentication (if you have appropriate permissions)
+```powershell
+az login
+.\Cleanup-WorkItems.ps1
+```
+
+**Solution 2**: Recreate your PAT with "Work Items (Read & Write)" scope
 
 #### Issue: "No items found that need cleanup"
 

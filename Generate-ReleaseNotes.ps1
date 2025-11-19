@@ -6,7 +6,7 @@ param(
     [string]$ProjectName = "OS",
     [string]$TeamName = "ft_buses",
     [string]$Organization = "",
-    [string]$PAT = "",
+    [SecureString]$PAT = $null,
     [string]$OutputDir = ".\output",
     [switch]$UseCurrentIteration = $false,
     [string]$SpecificIteration = "",
@@ -33,7 +33,7 @@ if (-not (Test-Path $OutputDir)) {
 # Generate timestamp for output files
 $timestamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
 
-# Get Azure DevOps credentials from environment or parameters
+# Get Azure DevOps organization from environment or parameters
 if ([string]::IsNullOrEmpty($Organization)) {
     $Organization = $env:AZURE_DEVOPS_ORG
     if ([string]::IsNullOrEmpty($Organization)) {
@@ -43,25 +43,76 @@ if ([string]::IsNullOrEmpty($Organization)) {
     }
 }
 
-if ([string]::IsNullOrEmpty($PAT)) {
-    $PAT = $env:AZURE_DEVOPS_PAT
-    if ([string]::IsNullOrEmpty($PAT)) {
-        Write-Host "ERROR: Azure DevOps Personal Access Token (PAT) not specified!" -ForegroundColor Red
-        Write-Host "Please provide via -PAT parameter or set AZURE_DEVOPS_PAT environment variable" -ForegroundColor Yellow
-        Write-Host ""
-        Write-Host "To create a PAT:" -ForegroundColor Cyan
-        Write-Host "1. Go to https://dev.azure.com/$Organization/_usersSettings/tokens" -ForegroundColor Gray
-        Write-Host "2. Create a new token with 'Work Items (Read)' and 'Code (Read)' scopes" -ForegroundColor Gray
-        Write-Host "3. Set it as environment variable: `$env:AZURE_DEVOPS_PAT = 'your-pat-here'" -ForegroundColor Gray
-        exit 1
-    }
+# Authentication: Try Azure CLI first, then fall back to PAT
+$useAzureCliAuth = $false
+$headers = @{
+    "Content-Type" = "application/json"
 }
 
-# Create authorization header
-$encodedPAT = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(":$PAT"))
-$headers = @{
-    "Authorization" = "Basic $encodedPAT"
-    "Content-Type" = "application/json"
+# Try to use Azure CLI authentication
+try {
+    $azAccount = az account show 2>$null | ConvertFrom-Json
+    if ($azAccount) {
+        Write-Host "Using Azure CLI authentication (logged in as $($azAccount.user.name))" -ForegroundColor Green
+        
+        # Get Azure DevOps access token using Azure CLI
+        $token = az account get-access-token --resource 499b84ac-1321-427f-aa17-267ca6975798 --query accessToken -o tsv 2>$null
+        if ($token) {
+            $headers["Authorization"] = "Bearer $token"
+            $useAzureCliAuth = $true
+            Write-Host "Successfully obtained Azure DevOps access token" -ForegroundColor Green
+        }
+    }
+}
+catch {
+    # Azure CLI not available or not logged in, will try PAT
+}
+
+# Fall back to PAT authentication if Azure CLI is not available
+if (-not $useAzureCliAuth) {
+    # Check if PAT was provided as parameter
+    if ($null -eq $PAT) {
+        # Try to get PAT from environment variable as SecureString
+        $patEnvValue = $env:AZURE_DEVOPS_PAT
+        if (-not [string]::IsNullOrEmpty($patEnvValue)) {
+            # Convert plain text PAT from environment to SecureString
+            $PAT = ConvertTo-SecureString -String $patEnvValue -AsPlainText -Force
+        }
+    }
+    
+    if ($null -eq $PAT) {
+        Write-Host "ERROR: Authentication required!" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "Option 1 (Recommended): Use Azure CLI authentication" -ForegroundColor Cyan
+        Write-Host "  1. Run: az login" -ForegroundColor Gray
+        Write-Host "  2. Run: az devops configure --defaults organization=https://dev.azure.com/$Organization" -ForegroundColor Gray
+        Write-Host "  3. Run this script again" -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "Option 2: Use Personal Access Token (PAT)" -ForegroundColor Cyan
+        Write-Host "  To create a PAT:" -ForegroundColor Gray
+        Write-Host "  1. Go to https://dev.azure.com/$Organization/_usersSettings/tokens" -ForegroundColor Gray
+        Write-Host "  2. Create a new token with 'Work Items (Read)' and 'Code (Read)' scopes" -ForegroundColor Gray
+        Write-Host "  3. Set as environment variable: `$env:AZURE_DEVOPS_PAT = 'your-pat-here'" -ForegroundColor Gray
+        Write-Host "     OR pass as SecureString: -PAT (Read-Host -AsSecureString)" -ForegroundColor Gray
+        exit 1
+    }
+    
+    Write-Host "Using Personal Access Token (PAT) authentication" -ForegroundColor Yellow
+    
+    # Convert SecureString to plain text for encoding (only in memory, never logged)
+    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($PAT)
+    try {
+        $plainPAT = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+        $encodedPAT = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(":$plainPAT"))
+        $headers["Authorization"] = "Basic $encodedPAT"
+    }
+    finally {
+        # Immediately clear the plain text PAT from memory
+        [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
+        if ($plainPAT) {
+            $plainPAT = $null
+        }
+    }
 }
 
 $baseUrl = "https://dev.azure.com/$Organization"

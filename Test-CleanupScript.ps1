@@ -18,14 +18,21 @@ Write-Host ""
 # Test 2: Validate script parameters
 Write-Host "Test 2: Validating script parameters..." -ForegroundColor Yellow
 $scriptContent = Get-Content $cleanupScriptPath -Raw
-$requiredParams = @("ProjectName", "TeamName", "Organization", "PAT", "OutputDir", "DryRun")
+$requiredParams = @(
+    @{Name="ProjectName"; Pattern="\[string\]\`$ProjectName"},
+    @{Name="TeamName"; Pattern="\[string\]\`$TeamName"},
+    @{Name="Organization"; Pattern="\[string\]\`$Organization"},
+    @{Name="PAT"; Pattern="\[SecureString\]\`$PAT"},
+    @{Name="OutputDir"; Pattern="\[string\]\`$OutputDir"},
+    @{Name="DryRun"; Pattern="\[switch\]\`$DryRun"}
+)
 $allFound = $true
 
 foreach ($param in $requiredParams) {
-    if ($scriptContent -match "\[string\]\`$$param|switch\]\`$$param") {
-        Write-Host "  ✅ Parameter found: $param" -ForegroundColor Green
+    if ($scriptContent -match $param.Pattern) {
+        Write-Host "  ✅ Parameter found: $($param.Name)" -ForegroundColor Green
     } else {
-        Write-Host "  ❌ FAIL: Missing parameter: $param" -ForegroundColor Red
+        Write-Host "  ❌ FAIL: Missing parameter: $($param.Name)" -ForegroundColor Red
         $allFound = $false
     }
 }
@@ -202,12 +209,15 @@ Write-Host ""
 Write-Host "The cleanup script is ready for use!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Usage examples:" -ForegroundColor Cyan
-Write-Host "1. Dry run (recommended first):" -ForegroundColor Gray
+Write-Host "1. With Azure CLI (recommended):" -ForegroundColor Gray
+Write-Host "   az login" -ForegroundColor Gray
 Write-Host "   .\Cleanup-WorkItems.ps1 -DryRun" -ForegroundColor Gray
 Write-Host ""
-Write-Host "2. Live execution:" -ForegroundColor Gray
-Write-Host "   .\Cleanup-WorkItems.ps1" -ForegroundColor Gray
+Write-Host "2. With PAT as environment variable:" -ForegroundColor Gray
+Write-Host "   `$env:AZURE_DEVOPS_PAT = 'your-pat'" -ForegroundColor Gray
+Write-Host "   .\Cleanup-WorkItems.ps1 -DryRun" -ForegroundColor Gray
 Write-Host ""
-Write-Host "3. With custom organization and PAT:" -ForegroundColor Gray
-Write-Host "   .\Cleanup-WorkItems.ps1 -Organization 'myorg' -PAT 'your-pat' -DryRun" -ForegroundColor Gray
+Write-Host "3. With PAT as SecureString:" -ForegroundColor Gray
+Write-Host "   `$securePAT = Read-Host -AsSecureString" -ForegroundColor Gray
+Write-Host "   .\Cleanup-WorkItems.ps1 -Organization 'myorg' -PAT `$securePAT -DryRun" -ForegroundColor Gray
 Write-Host ""
