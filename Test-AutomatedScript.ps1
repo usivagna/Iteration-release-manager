@@ -172,16 +172,23 @@ Write-Host ""
 # Test 5: Check script parameters
 Write-Host "Test 5: Validating script parameters..." -ForegroundColor Yellow
 $scriptContent = Get-Content ".\Generate-ReleaseNotes.ps1" -Raw
-$requiredParams = @("ProjectName", "TeamName", "Organization", "PAT", "OutputDir")
+$requiredParams = @(
+    @{Name="ProjectName"; Type="string"},
+    @{Name="TeamName"; Type="string"},
+    @{Name="Organization"; Type="string"},
+    @{Name="PAT"; Type="SecureString"},
+    @{Name="OutputDir"; Type="string"}
+)
 $allFound = $true
 foreach ($param in $requiredParams) {
-    if ($scriptContent -notmatch "\[string\]\`$$param") {
-        Write-Host "  ❌ FAIL: Missing parameter: $param" -ForegroundColor Red
+    $pattern = "\[$($param.Type)\]\`$$($param.Name)"
+    if ($scriptContent -notmatch $pattern) {
+        Write-Host "  ❌ FAIL: Missing or incorrect parameter type: $($param.Name) (expected $($param.Type))" -ForegroundColor Red
         $allFound = $false
     }
 }
 if ($allFound) {
-    Write-Host "  ✅ PASS: All required parameters present" -ForegroundColor Green
+    Write-Host "  ✅ PASS: All required parameters present with correct types" -ForegroundColor Green
 }
 Write-Host ""
 
@@ -196,7 +203,12 @@ Write-Host ""
 Write-Host "The automated script is ready for use!" -ForegroundColor Green
 Write-Host ""
 Write-Host "To use with real Azure DevOps data:" -ForegroundColor Cyan
-Write-Host "1. Set environment variables:" -ForegroundColor Gray
-Write-Host "   `$env:AZURE_DEVOPS_ORG = 'your-org'" -ForegroundColor Gray
-Write-Host "   `$env:AZURE_DEVOPS_PAT = 'your-pat'" -ForegroundColor Gray
-Write-Host "2. Run: .\Generate-ReleaseNotes.ps1" -ForegroundColor Gray
+Write-Host "Option 1 (Recommended): Use Azure CLI" -ForegroundColor Yellow
+Write-Host "  1. az login" -ForegroundColor Gray
+Write-Host "  2. Set `$env:AZURE_DEVOPS_ORG = 'your-org'" -ForegroundColor Gray
+Write-Host "  3. Run: .\Generate-ReleaseNotes.ps1" -ForegroundColor Gray
+Write-Host ""
+Write-Host "Option 2: Use PAT" -ForegroundColor Yellow
+Write-Host "  1. Set `$env:AZURE_DEVOPS_ORG = 'your-org'" -ForegroundColor Gray
+Write-Host "  2. Set `$env:AZURE_DEVOPS_PAT = 'your-pat'" -ForegroundColor Gray
+Write-Host "  3. Run: .\Generate-ReleaseNotes.ps1" -ForegroundColor Gray
