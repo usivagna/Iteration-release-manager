@@ -1,5 +1,6 @@
-# Test output directory
+# Test output directories
 test-output/
+test-output-final/
 
 # Generated output files (users should generate their own)
 output/*.md
