@@ -41,6 +41,7 @@
 
 Pull Requests:
   - **PR #1001:** Add USB4 D3cold power state transitions | **Repo:** os-client
+
     <details><summary>View Details</summary>
 
     Implements USB4 router D3cold entry and exit sequences with proper coordination with PCIe link states. Includes telemetry for power state transitions and error handling for failed transitions.
@@ -48,6 +49,7 @@ Pull Requests:
     </details>
 
   - **PR #1002:** Add power telemetry for USB4 routers | **Repo:** os-client
+
     <details><summary>View Details</summary>
 
     Adds ETW events for USB4 power state changes to enable monitoring and debugging of power-related issues in the field.
@@ -63,6 +65,7 @@ Pull Requests:
 
 Pull Requests:
   - **PR #1004:** Add I2C bus reset for unresponsive HID devices | **Repo:** os-client
+
     <details><summary>View Details</summary>
 
     Implements detection of hung I2C transactions and automatic bus reset with device re-initialization. Includes retry logic and telemetry for recovery success rates.
@@ -78,6 +81,7 @@ Pull Requests:
 
 Pull Requests:
   - **PR #1003:** Fix race condition in sensor data aggregation | **Repo:** os-client
+
     <details><summary>View Details</summary>
 
     Adds proper locking around sensor data structures accessed from multiple threads. Includes stress test that reproduces the original crash and validates the fix.
@@ -119,4 +123,4 @@ Please review and enhance with additional context as needed.
 
 ---
 
-*Generated on 2025-11-20 17:08:57*
+*Generated on 2025-11-20 17:28:57*

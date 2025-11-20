@@ -660,7 +660,7 @@ function Format-WorkItemSection {
                 if ($cleanPrDesc.Length -gt 2000) {
                     $cleanPrDesc = $cleanPrDesc.Substring(0, 1997) + "..."
                 }
-                "  - **PR #$($pr.id):** $cleanPrTitle | **Repo:** $($pr.repository)`n    <details><summary>View Details</summary>`n`n    $cleanPrDesc`n`n    </details>"
+                "  - **PR #$($pr.id):** $cleanPrTitle | **Repo:** $($pr.repository)`n`n    <details><summary>View Details</summary>`n`n    $cleanPrDesc`n`n    </details>"
             } else {
                 "  - **PR #$($pr.id):** $cleanPrTitle | **Repo:** $($pr.repository)"
             }
