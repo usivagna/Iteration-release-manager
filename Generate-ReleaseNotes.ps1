@@ -672,7 +672,7 @@ function Format-WorkItemSection {
 **Type:** $($wi.type) | **State:** $($wi.state)  
 **Description:** $cleanDesc
 
-**Pull Requests:**
+Pull Requests:
 $prList
 
 "@

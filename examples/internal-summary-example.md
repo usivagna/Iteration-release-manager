@@ -39,7 +39,7 @@
 **Type:** User Story | **State:** Closed  
 **Description:** Add support for enhanced USB4 power states to improve battery life on mobile devices. This includes implementing D3cold transitions and coordinating with PCI power management.
 
-**Pull Requests:**
+Pull Requests:
   - **PR #1001:** Add USB4 D3cold power state transitions | **Repo:** os-client
     <details><summary>View Details</summary>
 
@@ -61,7 +61,7 @@
 **Type:** User Story | **State:** Closed  
 **Description:** Implement automatic recovery for HID-over-I2C devices when they become unresponsive. This improves reliability for touchpads and touchscreens that use I2C transport.
 
-**Pull Requests:**
+Pull Requests:
   - **PR #1004:** Add I2C bus reset for unresponsive HID devices | **Repo:** os-client
     <details><summary>View Details</summary>
 
@@ -76,7 +76,7 @@
 **Type:** Bug | **State:** Closed  
 **Description:** Sensor fusion driver crashes when switching between monitors with different orientations. Root cause is race condition in accelerometer data aggregation.
 
-**Pull Requests:**
+Pull Requests:
   - **PR #1003:** Fix race condition in sensor data aggregation | **Repo:** os-client
     <details><summary>View Details</summary>
 
@@ -119,4 +119,4 @@ Please review and enhance with additional context as needed.
 
 ---
 
-*Generated on 2025-11-20 03:39:49*
+*Generated on 2025-11-20 17:08:57*
