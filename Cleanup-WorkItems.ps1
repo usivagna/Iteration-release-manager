@@ -1,6 +1,14 @@
 # Cleanup-WorkItems.ps1
 # Script to clean up work items at the end of an iteration
 # Uses Azure DevOps REST API to update work items
+#
+# Features:
+# - Dry Run Mode: Use -DryRun to preview changes without making any modifications
+# - Automated Tagging: All modified items are tagged with "AutomatedCleanup" for tracking
+# - Task 1: Update closed items to the iteration they were closed in
+# - Task 2: Sync child item ranks with parent ranks
+# - Task 3: Move incomplete items from past iterations to backlog
+# - Task 4: Mark deliverables as completed when all child tasks are closed
 
 param(
     [string]$ProjectName = "OS",
@@ -18,6 +26,9 @@ $AreaPaths = @(
     "OS\Core\Connectivity Platform\Buses",
     "OS\Core\Connectivity Platform\Sensors"
 )
+
+# Tag to identify items modified by this script
+$CleanupTag = "AutomatedCleanup"
 
 Write-Host "=== Work Item Cleanup Script ===" -ForegroundColor Cyan
 Write-Host "Project: $ProjectName" -ForegroundColor Yellow
@@ -298,6 +309,7 @@ if ($wiqlResult -and $wiqlResult.workItems) {
                                     correctIterationPath = $correctIteration.path
                                     correctIterationName = $correctIteration.name
                                     closedDate = $closedDate
+                                    tags = $wi.fields.'System.Tags'
                                 }
                             }
                         } catch {
@@ -401,6 +413,7 @@ if ($pcWiqlResult -and $pcWiqlResult.workItemRelations) {
                                 parentId = $parentId
                                 parentTitle = $parent.fields.'System.Title'
                                 parentRank = $parentRank
+                                tags = $child.fields.'System.Tags'
                             }
                         }
                     }
@@ -585,6 +598,7 @@ if ($deliverablesResult -and $deliverablesResult.workItems) {
                                 iterationPath = $wi.fields.'System.IterationPath'
                                 childCount = $childIds.Count
                                 childStates = $childStates -join "; "
+                                tags = $wi.fields.'System.Tags'
                             }
                         }
                     }
@@ -650,12 +664,25 @@ if ($itemsToUpdateIteration.Count -gt 0) {
         Write-Host "      Closed: $($item.closedDate)" -ForegroundColor Gray
         
         if (-not $DryRun) {
-            # Create PATCH operation to update iteration path and add comment
+            # Build tag value - append to existing tags if any
+            $currentTags = $item.tags
+            $newTags = if ([string]::IsNullOrEmpty($currentTags)) {
+                $CleanupTag
+            } else {
+                "$currentTags; $CleanupTag"
+            }
+            
+            # Create PATCH operation to update iteration path, add tag, and add comment
             $patchDocument = @(
                 @{
                     op = "add"
                     path = "/fields/System.IterationPath"
                     value = $item.correctIterationPath
+                },
+                @{
+                    op = "add"
+                    path = "/fields/System.Tags"
+                    value = $newTags
                 },
                 @{
                     op = "add"
@@ -698,12 +725,25 @@ if ($itemsToUpdateRank.Count -gt 0) {
         Write-Host "      Parent rank: $($item.parentRank)" -ForegroundColor Gray
         
         if (-not $DryRun) {
-            # Create PATCH operation to update rank and add comment
+            # Build tag value - append to existing tags if any
+            $currentTags = $item.tags
+            $newTags = if ([string]::IsNullOrEmpty($currentTags)) {
+                $CleanupTag
+            } else {
+                "$currentTags; $CleanupTag"
+            }
+            
+            # Create PATCH operation to update rank, add tag, and add comment
             $patchDocument = @(
                 @{
                     op = "add"
                     path = "/fields/Microsoft.VSTS.Common.StackRank"
                     value = $item.parentRank
+                },
+                @{
+                    op = "add"
+                    path = "/fields/System.Tags"
+                    value = $newTags
                 },
                 @{
                     op = "add"
@@ -748,12 +788,25 @@ if ($itemsToMoveToNext.Count -gt 0 -and $backlogIterationInfo) {
         Write-Host "      Iteration ended: $($item.iterationEndDate)" -ForegroundColor Gray
         
         if (-not $DryRun) {
-            # Create PATCH operation to move to next iteration and add comment
+            # Build tag value - append to existing tags if any
+            $currentTags = $item.tags
+            $newTags = if ([string]::IsNullOrEmpty($currentTags)) {
+                $CleanupTag
+            } else {
+                "$currentTags; $CleanupTag"
+            }
+            
+            # Create PATCH operation to move to next iteration, add tag, and add comment
             $patchDocument = @(
                 @{
                     op = "add"
                     path = "/fields/System.IterationPath"
                     value = $backlogIterationInfo.iterationPath
+                },
+                @{
+                    op = "add"
+                    path = "/fields/System.Tags"
+                    value = $newTags
                 },
                 @{
                     op = "add"
@@ -798,13 +851,26 @@ if ($itemsToMarkCompleted.Count -gt 0) {
         Write-Host "      Children: $($item.childCount) (all closed)" -ForegroundColor Gray
         
         if (-not $DryRun) {
-            # Create PATCH operation to mark as Completed and add comment
+            # Build tag value - append to existing tags if any
+            $currentTags = $item.tags
+            $newTags = if ([string]::IsNullOrEmpty($currentTags)) {
+                $CleanupTag
+            } else {
+                "$currentTags; $CleanupTag"
+            }
+            
+            # Create PATCH operation to mark as Completed, add tag, and add comment
             $completionDate = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
             $patchDocument = @(
                 @{
                     op = "add"
                     path = "/fields/System.State"
                     value = "Completed"
+                },
+                @{
+                    op = "add"
+                    path = "/fields/System.Tags"
+                    value = $newTags
                 },
                 @{
                     op = "add"

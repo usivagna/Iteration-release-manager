@@ -119,9 +119,56 @@ After running the script, you'll have these files in the `output/` folder:
 
 ---
 
+## Running the Cleanup Script
+
+The cleanup script automates work item maintenance at the end of iterations. It includes **dry run mode** for safety and **automatic tagging** for tracking.
+
+### Basic Usage - Dry Run First (Recommended)
+
+```powershell
+# Preview changes without making any modifications
+.\Cleanup-WorkItems.ps1 -DryRun
+```
+
+### Apply Changes After Preview
+
+```powershell
+# Apply the changes to Azure DevOps
+.\Cleanup-WorkItems.ps1
+```
+
+### What It Does
+
+The script performs four cleanup tasks:
+
+1. **Update Iteration Paths**: Moves closed items to the iteration they were closed in
+2. **Sync Ranks**: Updates child item ranks to match parent ranks
+3. **Move to Backlog**: Relocates incomplete items from past iterations to the backlog
+4. **Mark as Completed**: Updates deliverables when all child tasks are closed
+
+### New Features
+
+✅ **Dry Run Mode** (`-DryRun`): Preview all changes without modifying Azure DevOps  
+✅ **Automatic Tagging**: All modified items get tagged with `AutomatedCleanup` for tracking  
+✅ **Change Reports**: JSON reports saved to `output/` folder with full details  
+✅ **Confirmation Prompts**: Review changes before applying (unless in dry run mode)
+
+### Find Items Changed by Script
+
+Query in Azure DevOps:
+
+```wiql
+System.Tags Contains "AutomatedCleanup"
+```
+
+See [CLEANUP-FEATURES.md](CLEANUP-FEATURES.md) for complete documentation.
+
+---
+
 ## Need More Help?
 
 See the full [README-NEW.md](README-NEW.md) for:
+
 - Detailed setup instructions
 - Comprehensive troubleshooting guide
 - Customization options
