@@ -506,6 +506,8 @@ In addition to release notes generation, this repository includes a work item cl
 
 1. Assigning closed items to the respective iteration based on their closed date
 2. Updating the rank field of child items to match their parent item's rank
+3. Moving incomplete items from past iterations to the backlog for re-triage
+4. Marking deliverables as "Completed" when all their child tasks are closed
 
 **Key Features**:
 
@@ -601,6 +603,18 @@ Same as the release notes generator, plus:
 - Compares the rank (StackRank) field of child items with their parents
 - Updates child items to match their parent's rank when different
 - Helps maintain consistent prioritization across related work items
+
+#### Task 3: Move Incomplete Items to Backlog
+
+- Identifies incomplete work items in past iterations
+- Moves them to the backlog iteration for re-triage
+- Ensures items are not lost when iterations end
+
+#### Task 4: Mark Deliverables as Completed
+
+- Finds deliverables (Features, Epics, User Stories) in "Started" state
+- Checks if all child tasks are closed
+- Automatically marks deliverables as "Completed" when appropriate
 
 ### Output
 

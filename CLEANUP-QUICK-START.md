@@ -4,10 +4,12 @@ This guide helps you get started with the work item cleanup automation.
 
 ## What Does It Do?
 
-The cleanup script performs two important tasks at the end of each iteration:
+The cleanup script performs four important tasks at the end of each iteration:
 
 1. **Iteration Path Assignment**: Automatically assigns work items to the correct iteration based on when they were closed
 2. **Rank Synchronization**: Updates child work item ranks to match their parent items, maintaining consistent prioritization
+3. **Move Incomplete Items**: Moves incomplete items from past iterations to the backlog for re-triage
+4. **Mark Completed Deliverables**: Marks deliverables as "Completed" when all their child tasks are closed
 
 ## Prerequisites
 
@@ -185,6 +187,34 @@ At the end of each sprint:
 - Parent Item #12340 has rank: 1000
 - Child Item #12345 has rank: 500
 - ✅ Child updated to rank: 1000
+
+### Task 3: Move Incomplete Items to Backlog
+
+**Why**: Items that weren't completed during an iteration need to be moved to the backlog for re-prioritization and assignment to future iterations.
+
+**How it works**:
+- Script finds incomplete work items in past (ended) iterations
+- Moves them to the backlog iteration
+- Adds a comment noting they were moved for triage
+
+**Example**:
+- Work Item #12346 is in "Active" state
+- Assigned to Sprint 2 (ended 2025-08-31)
+- ✅ Moved to: "OS" (backlog) for re-triage
+
+### Task 4: Mark Deliverables as Completed
+
+**Why**: Deliverables (Features, Epics, User Stories) should be marked as "Completed" when all their child tasks are closed.
+
+**How it works**:
+- Script finds deliverables in "Started" or "Active" state
+- Checks all child tasks
+- Marks deliverable as "Completed" if all children are closed
+
+**Example**:
+- Feature #12350 is in "Started" state
+- All 5 child tasks are in "Closed" state
+- ✅ Feature updated to: "Completed"
 
 ## Safety Features
 

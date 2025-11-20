@@ -1,6 +1,14 @@
 # Cleanup-WorkItems.ps1
 # Script to clean up work items at the end of an iteration
 # Uses Azure DevOps REST API to update work items
+#
+# Features:
+# - Dry Run Mode: Use -DryRun to preview changes without making any modifications
+# - Automated Tagging: All modified items are tagged with "AutomatedCleanup" for tracking
+# - Task 1: Update closed items to the iteration they were closed in
+# - Task 2: Sync child item ranks with parent ranks
+# - Task 3: Move incomplete items from past iterations to backlog
+# - Task 4: Mark deliverables as completed when all child tasks are closed
 
 param(
     [string]$ProjectName = "OS",
@@ -18,6 +26,9 @@ $AreaPaths = @(
     "OS\Core\Connectivity Platform\Buses",
     "OS\Core\Connectivity Platform\Sensors"
 )
+
+# Tag to identify items modified by this script
+$CleanupTag = "AutomatedCleanup"
 
 Write-Host "=== Work Item Cleanup Script ===" -ForegroundColor Cyan
 Write-Host "Project: $ProjectName" -ForegroundColor Yellow
@@ -235,91 +246,6 @@ Write-Host ""
 # Step 2: Query work items that need cleanup
 Write-Host "Step 2: Querying work items that need cleanup..." -ForegroundColor Cyan
 
-# Task 0: Close bugs that have been resolved for over 31 days
-Write-Host "  Task 0: Finding bugs resolved over 31 days..." -ForegroundColor Yellow
-
-$itemsToCloseResolvedBugs = @()
-
-# Calculate the date 31 days ago
-$thirtyOneDaysAgo = (Get-Date).AddDays(-31).ToString("yyyy-MM-dd")
-
-# Build area path conditions for the query
-$resolvedBugsAreaConditions = ($AreaPaths | ForEach-Object { "[System.AreaPath] UNDER '$_'" }) -join " OR "
-
-# Build WIQL query for bugs resolved over 31 days ago
-$resolvedBugsWiql = @"
-SELECT [System.Id], [System.Title], [System.WorkItemType], [System.State], [System.AreaPath], [Microsoft.VSTS.Common.ResolvedDate], [System.AssignedTo]
-FROM WorkItems
-WHERE ($resolvedBugsAreaConditions)
-AND [System.WorkItemType] = 'Bug'
-AND [System.State] = 'Resolved'
-AND [Microsoft.VSTS.Common.ResolvedDate] < '$thirtyOneDaysAgo'
-AND [System.AssignedTo] <> 'wportal@microsoft.com'
-ORDER BY [Microsoft.VSTS.Common.ResolvedDate]
-"@
-
-$resolvedBugsQuery = @{
-    query = $resolvedBugsWiql
-}
-
-try {
-    Write-Host "    Querying for bugs resolved over 31 days ago..." -ForegroundColor Gray
-    $wiqlUrl = "$baseUrl/$ProjectName/_apis/wit/wiql?api-version=7.1-preview.2"
-    $resolvedBugsResult = Invoke-ADORestAPI -Uri $wiqlUrl -Method POST -Body $resolvedBugsQuery
-    
-    if ($resolvedBugsResult -and $resolvedBugsResult.workItems -and $resolvedBugsResult.workItems.Count -gt 0) {
-        $bugIds = $resolvedBugsResult.workItems | ForEach-Object { $_.id }
-        Write-Host "    Found $($bugIds.Count) potential bugs to check" -ForegroundColor Gray
-        
-        # Get detailed work item information in batches
-        $batchSize = 200
-        for ($i = 0; $i -lt $bugIds.Count; $i += $batchSize) {
-            $batchEnd = [Math]::Min($i + $batchSize - 1, $bugIds.Count - 1)
-            $batchIds = $bugIds[$i..$batchEnd]
-            $idsParam = $batchIds -join ","
-            
-            $workItemsUrl = "$baseUrl/$ProjectName/_apis/wit/workitems?ids=$idsParam&api-version=7.1-preview.3"
-            $workItems = Invoke-ADORestAPI -Uri $workItemsUrl
-            
-            if ($workItems -and $workItems.value) {
-                foreach ($bug in $workItems.value) {
-                    $resolvedDate = $bug.fields.'Microsoft.VSTS.Common.ResolvedDate'
-                    $assignedTo = $bug.fields.'System.AssignedTo'
-                    
-                    if ($resolvedDate) {
-                        try {
-                            $resolvedDateTime = [DateTime]$resolvedDate
-                            $daysResolved = [Math]::Floor((Get-Date).Subtract($resolvedDateTime).TotalDays)
-                            
-                            # Double-check it's been more than 31 days
-                            if ($daysResolved -gt 31) {
-                                $itemsToCloseResolvedBugs += @{
-                                    id = $bug.id
-                                    title = $bug.fields.'System.Title'
-                                    type = $bug.fields.'System.WorkItemType'
-                                    state = $bug.fields.'System.State'
-                                    resolvedDate = $resolvedDateTime
-                                    daysResolved = $daysResolved
-                                    assignedTo = if ($assignedTo) { $assignedTo.displayName } else { "Unassigned" }
-                                }
-                            }
-                        } catch {
-                            Write-Verbose "Could not parse resolved date for bug $($bug.id): $resolvedDate"
-                        }
-                    }
-                }
-            }
-        }
-        
-        Write-Host "    Found $($itemsToCloseResolvedBugs.Count) bugs to close" -ForegroundColor Green
-    } else {
-        Write-Host "    No bugs found that have been resolved for over 31 days" -ForegroundColor Gray
-    }
-} catch {
-    Write-Host "    WARNING: Failed to query for resolved bugs: $($_.Exception.Message)" -ForegroundColor Yellow
-    Write-Host "    Continuing with other cleanup tasks..." -ForegroundColor Gray
-}
-
 # Task 1: Find closed items that should be assigned to correct iteration (all past iterations)
 Write-Host "  Task 1: Finding closed items with incorrect iteration paths..." -ForegroundColor Yellow
 
@@ -383,6 +309,7 @@ if ($wiqlResult -and $wiqlResult.workItems) {
                                     correctIterationPath = $correctIteration.path
                                     correctIterationName = $correctIteration.name
                                     closedDate = $closedDate
+                                    tags = $wi.fields.'System.Tags'
                                 }
                             }
                         } catch {
@@ -486,6 +413,7 @@ if ($pcWiqlResult -and $pcWiqlResult.workItemRelations) {
                                 parentId = $parentId
                                 parentTitle = $parent.fields.'System.Title'
                                 parentRank = $parentRank
+                                tags = $child.fields.'System.Tags'
                             }
                         }
                     }
@@ -670,6 +598,7 @@ if ($deliverablesResult -and $deliverablesResult.workItems) {
                                 iterationPath = $wi.fields.'System.IterationPath'
                                 childCount = $childIds.Count
                                 childStates = $childStates -join "; "
+                                tags = $wi.fields.'System.Tags'
                             }
                         }
                     }
@@ -687,12 +616,11 @@ Write-Host ""
 
 # User confirmation before applying changes (unless in DryRun mode)
 if (-not $DryRun) {
-    $totalChanges = $itemsToCloseResolvedBugs.Count + $itemsToUpdateIteration.Count + $itemsToUpdateRank.Count + $itemsToMoveToNext.Count + $itemsToMarkCompleted.Count
+    $totalChanges = $itemsToUpdateIteration.Count + $itemsToUpdateRank.Count + $itemsToMoveToNext.Count + $itemsToMarkCompleted.Count
     
     if ($totalChanges -gt 0) {
         Write-Host "=== CONFIRMATION REQUIRED ===" -ForegroundColor Yellow
         Write-Host "You are about to make changes to Azure DevOps work items:" -ForegroundColor Yellow
-        Write-Host "  - $($itemsToCloseResolvedBugs.Count) bugs resolved over 31 days will be closed" -ForegroundColor Gray
         Write-Host "  - $($itemsToUpdateIteration.Count) items will have iteration path updated" -ForegroundColor Gray
         Write-Host "  - $($itemsToUpdateRank.Count) items will have rank updated" -ForegroundColor Gray
         Write-Host "  - $($itemsToMoveToNext.Count) incomplete items will be moved to backlog" -ForegroundColor Gray
@@ -725,61 +653,6 @@ $updatedCount = 0
 $errorCount = 0
 $changeLog = @()
 
-# Close bugs that have been resolved for over 31 days
-if ($itemsToCloseResolvedBugs.Count -gt 0) {
-    Write-Host "  Closing bugs resolved for over 31 days ($($itemsToCloseResolvedBugs.Count) items)..." -ForegroundColor Yellow
-    
-    foreach ($item in $itemsToCloseResolvedBugs) {
-        Write-Host "    [$($item.id)] $($item.title)" -ForegroundColor Gray
-        Write-Host "      State: $($item.state) -> Closed" -ForegroundColor Gray
-        Write-Host "      Resolved: $($item.resolvedDate) ($($item.daysResolved) days ago)" -ForegroundColor Gray
-        Write-Host "      Assigned to: $($item.assignedTo)" -ForegroundColor Gray
-        
-        if (-not $DryRun) {
-            # Create PATCH operation to close bug and add comments
-            $patchDocument = @(
-                @{
-                    op = "add"
-                    path = "/fields/System.State"
-                    value = "Closed"
-                },
-                @{
-                    op = "add"
-                    path = "/fields/System.History"
-                    value = "Ugan's AI agent closed this bug as it was resolved for over 30 days ($($item.daysResolved) days)."
-                },
-                @{
-                    op = "add"
-                    path = "/fields/OSG.Partner.PartnerNewComments"
-                    value = "This bug was closed as it was resolved for over 30 days."
-                }
-            )
-            
-            $updateUrl = "$baseUrl/$ProjectName/_apis/wit/workitems/$($item.id)?api-version=7.1-preview.3"
-            $result = Invoke-ADORestAPI -Uri $updateUrl -Method PATCH -Body $patchDocument
-            
-            if ($result) {
-                Write-Host "      ✅ Closed successfully" -ForegroundColor Green
-                $updatedCount++
-                $changeLog += @{
-                    id = $item.id
-                    title = $item.title
-                    type = "CloseResolvedBug"
-                    oldValue = $item.state
-                    newValue = "Closed"
-                    resolvedDate = $item.resolvedDate
-                    daysResolved = $item.daysResolved
-                }
-            } else {
-                Write-Host "      ❌ Failed to close" -ForegroundColor Red
-                $errorCount++
-            }
-        } else {
-            Write-Host "      [DRY RUN] Would close bug" -ForegroundColor Magenta
-        }
-    }
-}
-
 # Update iteration paths
 if ($itemsToUpdateIteration.Count -gt 0) {
     Write-Host "  Updating iteration paths for $($itemsToUpdateIteration.Count) items..." -ForegroundColor Yellow
@@ -791,12 +664,25 @@ if ($itemsToUpdateIteration.Count -gt 0) {
         Write-Host "      Closed: $($item.closedDate)" -ForegroundColor Gray
         
         if (-not $DryRun) {
-            # Create PATCH operation to update iteration path and add comment
+            # Build tag value - append to existing tags if any
+            $currentTags = $item.tags
+            $newTags = if ([string]::IsNullOrEmpty($currentTags)) {
+                $CleanupTag
+            } else {
+                "$currentTags; $CleanupTag"
+            }
+            
+            # Create PATCH operation to update iteration path, add tag, and add comment
             $patchDocument = @(
                 @{
                     op = "add"
                     path = "/fields/System.IterationPath"
                     value = $item.correctIterationPath
+                },
+                @{
+                    op = "add"
+                    path = "/fields/System.Tags"
+                    value = $newTags
                 },
                 @{
                     op = "add"
@@ -839,12 +725,25 @@ if ($itemsToUpdateRank.Count -gt 0) {
         Write-Host "      Parent rank: $($item.parentRank)" -ForegroundColor Gray
         
         if (-not $DryRun) {
-            # Create PATCH operation to update rank and add comment
+            # Build tag value - append to existing tags if any
+            $currentTags = $item.tags
+            $newTags = if ([string]::IsNullOrEmpty($currentTags)) {
+                $CleanupTag
+            } else {
+                "$currentTags; $CleanupTag"
+            }
+            
+            # Create PATCH operation to update rank, add tag, and add comment
             $patchDocument = @(
                 @{
                     op = "add"
                     path = "/fields/Microsoft.VSTS.Common.StackRank"
                     value = $item.parentRank
+                },
+                @{
+                    op = "add"
+                    path = "/fields/System.Tags"
+                    value = $newTags
                 },
                 @{
                     op = "add"
@@ -889,12 +788,25 @@ if ($itemsToMoveToNext.Count -gt 0 -and $backlogIterationInfo) {
         Write-Host "      Iteration ended: $($item.iterationEndDate)" -ForegroundColor Gray
         
         if (-not $DryRun) {
-            # Create PATCH operation to move to next iteration and add comment
+            # Build tag value - append to existing tags if any
+            $currentTags = $item.tags
+            $newTags = if ([string]::IsNullOrEmpty($currentTags)) {
+                $CleanupTag
+            } else {
+                "$currentTags; $CleanupTag"
+            }
+            
+            # Create PATCH operation to move to next iteration, add tag, and add comment
             $patchDocument = @(
                 @{
                     op = "add"
                     path = "/fields/System.IterationPath"
                     value = $backlogIterationInfo.iterationPath
+                },
+                @{
+                    op = "add"
+                    path = "/fields/System.Tags"
+                    value = $newTags
                 },
                 @{
                     op = "add"
@@ -939,13 +851,26 @@ if ($itemsToMarkCompleted.Count -gt 0) {
         Write-Host "      Children: $($item.childCount) (all closed)" -ForegroundColor Gray
         
         if (-not $DryRun) {
-            # Create PATCH operation to mark as Completed and add comment
+            # Build tag value - append to existing tags if any
+            $currentTags = $item.tags
+            $newTags = if ([string]::IsNullOrEmpty($currentTags)) {
+                $CleanupTag
+            } else {
+                "$currentTags; $CleanupTag"
+            }
+            
+            # Create PATCH operation to mark as Completed, add tag, and add comment
             $completionDate = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
             $patchDocument = @(
                 @{
                     op = "add"
                     path = "/fields/System.State"
                     value = "Completed"
+                },
+                @{
+                    op = "add"
+                    path = "/fields/System.Tags"
+                    value = $newTags
                 },
                 @{
                     op = "add"
@@ -1001,7 +926,6 @@ $report = @{
     nextIterationPath = if ($backlogIterationInfo) { $backlogIterationInfo.iterationPath } else { $null }
     dryRun = $DryRun
     summary = @{
-        itemsToCloseResolvedBugs = $itemsToCloseResolvedBugs.Count
         itemsToUpdateIteration = $itemsToUpdateIteration.Count
         itemsToUpdateRank = $itemsToUpdateRank.Count
         itemsToMoveToNext = $itemsToMoveToNext.Count
@@ -1019,7 +943,6 @@ Write-Host ""
 # Summary
 Write-Host "=== Cleanup Summary ===" -ForegroundColor Cyan
 Write-Host "Iteration: $($iterationInfo.iterationName)" -ForegroundColor Yellow
-Write-Host "  Bugs resolved over 31 days to close: $($itemsToCloseResolvedBugs.Count)" -ForegroundColor Gray
 Write-Host "  Items to update iteration path: $($itemsToUpdateIteration.Count)" -ForegroundColor Gray
 Write-Host "  Items to update rank: $($itemsToUpdateRank.Count)" -ForegroundColor Gray
 Write-Host "  Items to move to backlog: $($itemsToMoveToNext.Count)" -ForegroundColor Gray
