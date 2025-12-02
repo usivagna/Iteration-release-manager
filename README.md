@@ -41,10 +41,18 @@ This automation queries Azure DevOps for completed work items in a previous iter
   - Pull requests
   - Commit history
 
-### Area Paths Covered
+### Area Paths
 
+The scripts will prompt you to specify Area Paths when you run them. You can enter one or more Area Paths to query work items from specific areas.
+
+**Example Area Paths:**
 - `OS\Core\Connectivity Platform\Buses`
 - `OS\Core\Connectivity Platform\Sensors`
+
+You can also pass Area Paths as a parameter to skip the interactive prompt:
+```powershell
+.\Generate-ReleaseNotes.ps1 -AreaPaths @("Your\Area\Path")
+```
 
 ## Setup
 
@@ -139,11 +147,12 @@ The script generates `-prompt.txt` files alongside the summaries containing rich
 
 This will:
 
-1. Authenticate using Azure CLI (if logged in) or PAT from environment variable
-2. Query the most recently completed iteration
-3. Collect all work items and PR descriptions
-4. Generate enhanced summaries with PR details (template-based by default)
-5. Create AI prompt files for optional AI-powered generation
+1. Prompt you to enter Area Paths (if not provided as a parameter)
+2. Authenticate using Azure CLI (if logged in) or PAT from environment variable
+3. Query the most recently completed iteration
+4. Collect all work items and PR descriptions
+5. Generate enhanced summaries with PR details (template-based by default)
+6. Create AI prompt files for optional AI-powered generation
 
 ### AI-Powered Generation (Default)
 
@@ -174,6 +183,12 @@ The generated `-prompt.txt` files contain:
 Uses enhanced templates that include PR descriptions directly in the output.
 
 ### Advanced Usage
+
+**Specify Area Paths directly (skip prompting):**
+
+```powershell
+.\Generate-ReleaseNotes.ps1 -AreaPaths @("OS\Core\Connectivity Platform\Buses", "OS\Core\Connectivity Platform\Sensors")
+```
 
 **Specify organization directly:**
 
@@ -215,6 +230,7 @@ $securePAT = Read-Host -AsSecureString -Prompt "Enter PAT"
     -PAT $securePAT `
     -ProjectName "OS" `
     -TeamName "ft_buses" `
+    -AreaPaths @("OS\Core\Connectivity Platform\Buses", "OS\Core\Connectivity Platform\Sensors") `
     -OutputDir ".\output" `
     -SpecificIteration "2025.09 Sprint 3"
 ```
@@ -428,15 +444,23 @@ $securePAT = Read-Host -AsSecureString -Prompt "Enter PAT"
 
 ### Modifying Area Paths
 
-Edit lines 16-19 in `Generate-ReleaseNotes.ps1`:
+**Option 1 (Interactive - Recommended):** Run the script without the `-AreaPaths` parameter, and it will prompt you to enter Area Paths:
 
 ```powershell
-$AreaPaths = @(
+.\Generate-ReleaseNotes.ps1
+# The script will prompt: "Enter an Area Path (or press Enter without input to finish):"
+```
+
+**Option 2 (Command Line):** Pass Area Paths as a parameter when running the script:
+
+```powershell
+.\Generate-ReleaseNotes.ps1 -AreaPaths @(
     "OS\Core\Connectivity Platform\Buses",
     "OS\Core\Connectivity Platform\Sensors"
-    # Add more area paths as needed
 )
 ```
+
+**Option 3 (Edit Script - Not Recommended):** If you prefer, you can still set default Area Paths by modifying the parameter default value in the script, but this is not recommended as it reduces flexibility.
 
 ### Changing Output Format
 
@@ -526,10 +550,11 @@ In addition to release notes generation, this repository includes a work item cl
 
 This will:
 
-1. Query the most recently completed iteration
-2. Identify work items that need cleanup
-3. Display what would be changed without making any actual updates
-4. Generate a report of potential changes
+1. Prompt you to enter Area Paths (if not provided as a parameter)
+2. Query the most recently completed iteration
+3. Identify work items that need cleanup
+4. Display what would be changed without making any actual updates
+5. Generate a report of potential changes
 
 #### Live Execution
 
@@ -539,12 +564,13 @@ This will:
 
 This will:
 
-1. Query the most recently completed iteration
-2. Display a summary of work items to be updated
-3. **Prompt for confirmation** before making any changes
-4. Update iteration paths for items closed within the iteration dates (after confirmation)
-5. Update rank fields for child items to match their parents (after confirmation)
-6. Generate a report of all changes made
+1. Prompt you to enter Area Paths (if not provided as a parameter)
+2. Query the most recently completed iteration
+3. Display a summary of work items to be updated
+4. **Prompt for confirmation** before making any changes
+5. Update iteration paths for items closed within the iteration dates (after confirmation)
+6. Update rank fields for child items to match their parents (after confirmation)
+7. Generate a report of all changes made
 
 **Note**: The script will ask you to confirm (Y/N) before applying any changes to Azure DevOps. This safety feature ensures you review the changes before they are applied.
 
@@ -577,6 +603,7 @@ $securePAT = Read-Host -AsSecureString -Prompt "Enter PAT"
     -PAT $securePAT `
     -ProjectName "OS" `
     -TeamName "ft_buses" `
+    -AreaPaths @("OS\Core\Connectivity Platform\Buses", "OS\Core\Connectivity Platform\Sensors") `
     -OutputDir ".\output" `
     -DryRun
 ```
