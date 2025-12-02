@@ -50,8 +50,9 @@ if ($AreaPaths.Count -eq 0) {
     do {
         $areaPath = Read-Host "  Area Path"
         if (-not [string]::IsNullOrWhiteSpace($areaPath)) {
-            $inputAreaPaths += $areaPath.Trim()
-            Write-Host "    Added: $($areaPath.Trim())" -ForegroundColor Green
+            $trimmedPath = $areaPath.Trim()
+            $inputAreaPaths += $trimmedPath
+            Write-Host "    Added: $trimmedPath" -ForegroundColor Green
         }
     } while (-not [string]::IsNullOrWhiteSpace($areaPath))
     
