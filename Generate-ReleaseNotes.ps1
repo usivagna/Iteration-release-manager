@@ -593,153 +593,171 @@ if (-not $UseAI) {
         return $cleaned
     }
 
+    # Build summary tables
+    $totalPRs = ($workItemsWithPRs | ForEach-Object { $_.pullRequests.Count } | Measure-Object -Sum).Sum
+    $typeBreakdown = $workItemsWithPRs | Group-Object type | Sort-Object Count -Descending
+    $areaBreakdown = $workItemsWithPRs | Group-Object { $_.areaPath -replace '.*\\', '' } | Sort-Object Count -Descending
+
 $internalSummary = @"
 # Iteration Summary: $($iterationInfo.iterationName)
 
-**Period:** $($iterationInfo.startDate) to $($iterationInfo.endDate)
-**Team:** $TeamName
+**Period:** $($iterationInfo.startDate) to $($iterationInfo.endDate)  
+**Team:** $TeamName  
 **Areas:** Buses & Sensors
+
+---
 
 ## Executive Summary
 
-- Total work items completed: $($workItemsData.workItems.Count)
-- Work items with PRs: $($workItemsWithPRs.Count)
-- Breakdown by type (with PRs):
-$(($workItemsWithPRs | Group-Object type | ForEach-Object { "  - $($_.Name): $($_.Count)" }) -join "`n")
-- Breakdown by area (with PRs):
-$(($workItemsWithPRs | Group-Object { $_.areaPath -replace '.*\\', '' } | ForEach-Object { "  - $($_.Name): $($_.Count)" }) -join "`n")
+| Metric                     | Value |
+|----------------------------|-------|
+| Total Work Items Completed | $($workItemsData.workItems.Count) |
+| Work Items with PRs        | $($workItemsWithPRs.Count) |
+| Total PRs Merged           | $totalPRs |
 
-## Buses Component
+### Breakdown by Type (PRs)
+
+| Type | Count |
+|------|-------|
+$(($typeBreakdown | ForEach-Object { "| $($_.Name) | $($_.Count) |" }) -join "`n")
+
+### Breakdown by Area (PRs)
+
+| Area | Count |
+|------|-------|
+$(($areaBreakdown | ForEach-Object { "| $($_.Name) | $($_.Count) |" }) -join "`n")
+
+---
+
+## Work Items
 
 $(
+# Group all items by area for better organization
 $busesItems = $workItemsWithPRs | Where-Object { $_.areaPath -like '*\Buses*' }
-if ($busesItems) {
-    ($busesItems | ForEach-Object {
-        $wi = $_
-        $cleanTitle = Format-MarkdownText -Text $wi.title
-        $cleanDesc = Format-MarkdownText -Text $wi.description
-@"
-**[$($wi.id)] $cleanTitle**
-
-- **Type:** $($wi.type)
-- **State:** $($wi.state)
-- **Description:** $cleanDesc
-- **Pull Requests:**
-$(($wi.pullRequests | ForEach-Object { 
-    $pr = $_
-    $cleanPrTitle = Format-MarkdownText -Text $pr.title
-    $prDesc = if ($pr.description) { 
-        $cleanPrDesc = Format-MarkdownText -Text $pr.description
-        if ($cleanPrDesc) {
-            # Remove heading punctuation issues
-            $cleanPrDesc = $cleanPrDesc -replace '(##\s+[^?!]+)[.!?]+\s', '$1 '
-            # Split by sentences and limit length
-            if ($cleanPrDesc.Length -gt 2000) {
-                $cleanPrDesc = $cleanPrDesc.Substring(0, 1997) + "..."
-            }
-            "`n    **Repository:** $($pr.repository)`n`n    **Description:**`n`n    $cleanPrDesc"
-        } else {
-            "`n    **Repository:** $($pr.repository)"
-        }
-    } else { 
-        "`n    **Repository:** $($pr.repository)" 
-    }
-    "  - **PR #$($pr.id):** $cleanPrTitle$prDesc"
-}) -join "`n`n")
-
-"@
-    }) -join "`n---`n`n"
-} else {
-    "No work items with PRs completed in Buses component."
-}
-)
-
-## Sensors Component
-
-$(
 $sensorsItems = $workItemsWithPRs | Where-Object { $_.areaPath -like '*\Sensors*' }
-if ($sensorsItems) {
-    ($sensorsItems | ForEach-Object {
+
+# Function to format work item section
+function Format-WorkItemSection {
+    param($items, $componentName)
+    
+    if (-not $items -or $items.Count -eq 0) {
+        return "No work items with PRs completed in $componentName component."
+    }
+    
+    ($items | ForEach-Object {
         $wi = $_
         $cleanTitle = Format-MarkdownText -Text $wi.title
         $cleanDesc = Format-MarkdownText -Text $wi.description
-@"
-**[$($wi.id)] $cleanTitle**
-
-- **Type:** $($wi.type)
-- **State:** $($wi.state)
-- **Description:** $cleanDesc
-- **Pull Requests:**
-$(($wi.pullRequests | ForEach-Object { 
-    $pr = $_
-    $cleanPrTitle = Format-MarkdownText -Text $pr.title
-    $prDesc = if ($pr.description) { 
-        $cleanPrDesc = Format-MarkdownText -Text $pr.description
-        if ($cleanPrDesc) {
-            # Remove heading punctuation issues
-            $cleanPrDesc = $cleanPrDesc -replace '(##\s+[^?!]+)[.!?]+\s', '$1 '
-            # Split by sentences and limit length
-            if ($cleanPrDesc.Length -gt 2000) {
-                $cleanPrDesc = $cleanPrDesc.Substring(0, 1997) + "..."
+        
+        # Format PR list
+        $prList = ($wi.pullRequests | ForEach-Object { 
+            $pr = $_
+            $cleanPrTitle = Format-MarkdownText -Text $pr.title
+            $cleanPrDesc = if ($pr.description) { Format-MarkdownText -Text $pr.description } else { "" }
+            
+            if ($cleanPrDesc -and $cleanPrDesc.Length -gt 0) {
+                # Limit description length for collapsible section
+                if ($cleanPrDesc.Length -gt 2000) {
+                    $cleanPrDesc = $cleanPrDesc.Substring(0, 1997) + "..."
+                }
+                "  - **PR #$($pr.id):** $cleanPrTitle | **Repo:** $($pr.repository)`n`n    <details><summary>View Details</summary>`n`n    $cleanPrDesc`n`n    </details>"
+            } else {
+                "  - **PR #$($pr.id):** $cleanPrTitle | **Repo:** $($pr.repository)"
             }
-            "`n    **Repository:** $($pr.repository)`n`n    **Description:**`n`n    $cleanPrDesc"
-        } else {
-            "`n    **Repository:** $($pr.repository)"
-        }
-    } else { 
-        "`n    **Repository:** $($pr.repository)" 
-    }
-    "  - **PR #$($pr.id):** $cleanPrTitle$prDesc"
-}) -join "`n`n")
+        }) -join "`n`n"
+        
+@"
+### [$($wi.id)] $cleanTitle
+
+**Type:** $($wi.type) | **State:** $($wi.state)  
+**Description:** $cleanDesc
+
+Pull Requests:
+$prList
 
 "@
     }) -join "`n---`n`n"
-} else {
-    "No work items with PRs completed in Sensors component."
+}
+
+# Output Buses section
+if ($busesItems -and $busesItems.Count -gt 0) {
+@"
+### Buses Component
+
+$(Format-WorkItemSection -items $busesItems -componentName "Buses")
+"@
+}
+
+# Output Sensors section  
+if ($sensorsItems -and $sensorsItems.Count -gt 0) {
+@"
+
+### Sensors Component
+
+$(Format-WorkItemSection -items $sensorsItems -componentName "Sensors")
+"@
+}
+
+# Handle case where no items exist
+if ((-not $busesItems -or $busesItems.Count -eq 0) -and (-not $sensorsItems -or $sensorsItems.Count -eq 0)) {
+    "No work items with PRs completed in this iteration."
 }
 )
+
+---
 
 ## Technical Highlights
 
-**Major Features Implemented:**
+### Major Features Implemented
 $(
 $features = $workItemsWithPRs | Where-Object { $_.type -in @('User Story', 'Feature') }
 if ($features) {
-    ($features | ForEach-Object { "- [$($_.id)] $($_.title)" }) -join "`n"
+    ($features | ForEach-Object { "- **[$($_.id)]** $($_.title)" }) -join "`n"
 } else {
     "- No major features with PRs in this iteration"
 }
 )
 
-**Critical Bugs Fixed:**
+### Critical Bugs Fixed
 $(
 $bugs = $workItemsWithPRs | Where-Object { $_.type -eq 'Bug' }
 if ($bugs) {
-    ($bugs | ForEach-Object { "- [$($_.id)] $($_.title)" }) -join "`n"
+    ($bugs | ForEach-Object { "- **[$($_.id)]** $($_.title)" }) -join "`n"
 } else {
     "- No critical bugs with PRs fixed in this iteration"
 }
 )
 
+---
+
 ## Pull Request Summary
 
-- Total PRs merged: $(($workItemsWithPRs | ForEach-Object { $_.pullRequests } | Measure-Object).Count)
-- Most active repositories:
+| Metric | Value |
+|--------|-------|
+| Total PRs Merged | $totalPRs |
+
+### Most Active Repositories
+
+| Repository | PR Count |
+|------------|----------|
 $(
 $prsByRepo = $workItemsWithPRs | ForEach-Object { $_.pullRequests } | Group-Object repository
 if ($prsByRepo) {
-    ($prsByRepo | Sort-Object Count -Descending | Select-Object -First 5 | ForEach-Object { "  - $($_.Name): $($_.Count) PRs" }) -join "`n"
+    ($prsByRepo | Sort-Object Count -Descending | Select-Object -First 5 | ForEach-Object { "| $($_.Name) | $($_.Count) |" }) -join "`n"
 } else {
-    "  - No PR data available"
+    "| No PR data available | 0 |"
 }
 )
 
+---
+
 ## Notes
 
-This summary was automatically generated from Azure DevOps work item data.
+This summary was automatically generated from Azure DevOps work item data.  
 Please review and enhance with additional context as needed.
 
 ---
+
 *Generated on $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")*
 "@
 
@@ -979,22 +997,27 @@ if (-not $UseAI) {
 $insiderNotes = @"
 # Hello Windows Insiders!
 
-We're excited to share **$($workItemsWithPRsInsider.Count) improvements** to Windows 11 Buses & Sensors, focusing on $($topThemes -join ', ') and performance.
+We're excited to share **$($workItemsWithPRsInsider.Count) improvements** to Windows 11 Buses & Sensors, focusing on $($topThemes -join ', '), and performance.
+
+---
 
 ## $([System.Char]::ConvertFromUtf32(0x1F680)) Overview
 
 This release brings meaningful enhancements to how Windows handles device connectivity and sensors. Whether you're connecting USB devices, using modern sensors, or relying on system stability, these improvements work behind the scenes to make your experience more reliable and secure.
 
-**What's improved:**
+### What's Improved
+
 $(
 $overviewPoints = @()
-if ($themes['connectivity'] -gt 2) { $overviewPoints += "- Better USB and device connectivity with fewer connection issues" }
-if ($themes['sensors'] -gt 2) { $overviewPoints += "- Enhanced I3C sensor communication for improved accuracy" }
-if ($themes['security'] -gt 2) { $overviewPoints += "- Stronger security protections for driver components" }
-if ($themes['reliability'] -gt 2) { $overviewPoints += "- Resolved critical issues affecting system stability" }
-if ($overviewPoints.Count -eq 0) { $overviewPoints += "- General improvements to connectivity, performance, and reliability" }
-$overviewPoints[0..2] -join "`n"
+if ($themes['connectivity'] -gt 2) { $overviewPoints += "- **USB & Device Connectivity:** Fewer connection issues and better reliability" }
+if ($themes['sensors'] -gt 2) { $overviewPoints += "- **I3C Sensor Communication:** Enhanced accuracy and responsiveness" }
+if ($themes['security'] -gt 2) { $overviewPoints += "- **Security Protections:** Stronger safeguards for driver components" }
+if ($themes['reliability'] -gt 2) { $overviewPoints += "- **System Stability:** Resolved critical issues affecting reliability" }
+if ($overviewPoints.Count -eq 0) { $overviewPoints += "- **General Improvements:** Better connectivity, performance, and reliability" }
+$overviewPoints[0..3] -join "`n"
 )
+
+---
 
 ## $([System.Char]::ConvertFromUtf32(0x1F527)) Improvements & Bug Fixes
 
@@ -1006,7 +1029,7 @@ foreach ($wi in $selectedItems) {
     $bulletPoints += "- **${category}:** $benefit"
 }
 if ($bulletPoints.Count -eq 0) {
-    "- General reliability and performance improvements across connectivity components"
+    "- **General:** Reliability and performance improvements across connectivity components"
 } else {
     $bulletPoints[0..7] -join "`n"
 }
@@ -1019,6 +1042,8 @@ $knownIssues = @()
 if ($knownIssues.Count -gt 0) {
 @"
 
+---
+
 ## $([System.Char]::ConvertFromUtf32(0x26A0))$([System.Char]::ConvertFromUtf32(0xFE0F)) Known Issues
 
 $(($knownIssues | ForEach-Object { "- $_" }) -join "`n")
@@ -1026,9 +1051,13 @@ $(($knownIssues | ForEach-Object { "- $_" }) -join "`n")
 } else { "" }
 )
 
+---
+
 ## $([System.Char]::ConvertFromUtf32(0x1F468))$([System.Char]::ConvertFromUtf32(0x200D))$([System.Char]::ConvertFromUtf32(0x1F4BB)) For Developers
 
-This release includes updates across USB, I3C, and driver framework components. Key areas of change:
+This release includes updates across USB, I3C, and driver framework components.
+
+### Key Areas of Change
 
 $(
 $devCategories = $categorized.Keys | Where-Object { $_ -ne 'General' } | Sort-Object
@@ -1055,13 +1084,27 @@ For detailed technical information, refer to the work items listed above in Azur
 
 ## $([System.Char]::ConvertFromUtf32(0x1F4E6)) Availability
 
-These improvements are available to Windows Insiders in the **Dev** and **Canary** Channels. Join at [insider.windows.com](https://insider.windows.com) and check **Settings > Windows Update**.
+These improvements are available to Windows Insiders in the **Dev** and **Canary** Channels.
+
+**How to join:**
+- Visit [insider.windows.com](https://insider.windows.com)
+- Go to **Settings > Windows Update > Windows Insider Program**
+
+---
 
 ## $([System.Char]::ConvertFromUtf32(0x1F4AC)) Feedback
 
-Use **Feedback Hub** (Win + F) under **Hardware, Devices, and Drivers** to report issues or suggestions. Thank you for being a Windows Insider! $([System.Char]::ConvertFromUtf32(0x1F389))
+We value your feedback! Use the **Feedback Hub** (Win + F) to report issues or share suggestions.
+
+**Categories:**
+- Hardware, Devices, and Drivers > USB
+- Hardware, Devices, and Drivers > Sensors
+- Hardware, Devices, and Drivers > Other
+
+Thank you for being a Windows Insider! $([System.Char]::ConvertFromUtf32(0x1F389))
 
 ---
+
 *Generated: $(Get-Date -Format "MMMM dd, yyyy") | Iteration: $($iterationInfo.iterationName) | Updates: $($workItemsWithPRsInsider.Count)*
 "@
 

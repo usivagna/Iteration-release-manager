@@ -1,105 +1,63 @@
-# What's New in Buses & Sensors - September 2025
+# Hello Windows Insiders!
 
-## Overview
-
-This month we've focused on making your Windows device more reliable and power-efficient. We've improved how your computer manages power for USB4 devices, fixed a crash affecting multi-monitor setups, and made touchpads and touchscreens more resilient.
+We're excited to share **3 improvements** to Windows 11 Buses & Sensors, focusing on device connectivity, sensor performance, and system reliability.
 
 ---
 
-## New Features
+## 🚀 Overview
 
-### 🔋 Better Battery Life with USB4 Power Management
+This release brings meaningful enhancements to how Windows handles device connectivity and sensors. Whether you're connecting USB devices, using modern sensors, or relying on system stability, these improvements work behind the scenes to make your experience more reliable and secure.
 
-Your USB4 devices (like external SSDs, docks, and monitors) now enter deeper power-saving states when not in use, helping your laptop battery last longer.
+### What's Improved
 
-**What this means for you:**
-- Longer battery life when using USB4 accessories
-- Faster wake-up times when you need your devices again
-- Seamless transitions that you won't even notice
-
-**How to try it:**
-- Connect any USB4 device to your laptop
-- Leave it idle for a few minutes
-- Your device will automatically enter power-saving mode
+- **USB & Device Connectivity:** Fewer connection issues and better reliability
+- **I3C Sensor Communication:** Enhanced accuracy and responsiveness
+- **System Stability:** Resolved critical issues affecting reliability
 
 ---
 
-## Improvements
+## 🔧 Improvements & Bug Fixes
 
-### 🖱️ Touchpad and Touchscreen Reliability
-
-We've added automatic recovery for touchpads and touchscreens that occasionally become unresponsive. If your touch device stops responding, Windows will now automatically detect and fix the issue in the background.
-
-**What improved:**
-- Touchpads that freeze will now recover automatically
-- No more need to restart your device when touch stops working
-- Works for both built-in and external touch devices
+- **Device Connectivity:** Improved USB4 power management helps your laptop battery last longer when using external devices
+- **Device Connectivity:** Touchpads and touchscreens that freeze will now recover automatically without needing to restart
+- **System Reliability:** Fixed crashes when switching between monitors with different orientations on tablets and convertibles
 
 ---
 
-## Bug Fixes
+## 👨‍💻 For Developers
 
-### 🖥️ Multi-Monitor Crash Fix
+This release includes updates across USB, I3C, and driver framework components.
 
-**What was broken:**  
-Some users experienced system crashes when switching between monitors with different orientations (landscape vs. portrait), especially when using devices with rotation sensors like tablets or convertibles.
+### Key Areas of Change
 
-**What's fixed:**  
-Windows now correctly handles orientation changes across multiple monitors without crashing.
+- **Device Connectivity:** 2 updates (#12345678, #12345680)
+- **System Reliability:** 1 update (#12345679)
 
-**Who benefits:**  
-- Users with multi-monitor setups
-- Tablet and convertible PC users
-- Anyone who uses portrait-oriented monitors
+For detailed technical information, refer to the work items listed above in Azure DevOps.
 
 ---
 
-## Known Issues
+## 📦 Availability
 
-None at this time! 🎉
+These improvements are available to Windows Insiders in the **Dev** and **Canary** Channels.
 
----
-
-## For Developers
-
-### API Changes
-
-**USB4 Power Management:**
-- New power state notifications for USB4 router transitions
-- ETW events available for monitoring D3cold entry/exit
-
-**Sensor Fusion:**
-- Improved thread safety in sensor data aggregation APIs
-- Better error handling in multi-threaded scenarios
-
-### Breaking Changes
-None in this release.
-
-### New Capabilities
-- USB4 devices can now participate in advanced power management schemes
-- I2C HID devices have automatic error recovery
+**How to join:**
+- Visit [insider.windows.com](https://insider.windows.com)
+- Go to **Settings > Windows Update > Windows Insider Program**
 
 ---
 
-## What's Next
+## 💬 Feedback
 
-We're continuing to invest in connectivity reliability and power efficiency. In upcoming releases, you can expect:
+We value your feedback! Use the **Feedback Hub** (Win + F) to report issues or share suggestions.
 
-- Enhanced Bluetooth power management
-- Improved USB device enumeration speed
-- More sensor fusion improvements for mixed-reality scenarios
+**Categories:**
+- Hardware, Devices, and Drivers > USB
+- Hardware, Devices, and Drivers > Sensors
+- Hardware, Devices, and Drivers > Other
 
----
-
-**Note:** These features are available to Windows Insiders in the Dev and Canary channels. They will roll out to stable releases in upcoming Windows updates.
-
-## Thank You!
-
-Thanks for being a Windows Insider! Your feedback helps us build a better Windows. If you experience any issues with these changes, please report them through the Feedback Hub under **Hardware, Devices and Drivers** > **USB** or **Sensors**.
+Thank you for being a Windows Insider! 🎉
 
 ---
 
-**Feedback Hub Categories:**
-- USB issues: Hardware, Devices and Drivers > USB
-- Touch device issues: Hardware, Devices and Drivers > Touch
-- Sensor issues: Hardware, Devices and Drivers > Sensors
+*Generated: November 20, 2025 | Iteration: 2025.09 Sprint 3 | Updates: 3*
