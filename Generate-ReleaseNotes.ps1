@@ -564,10 +564,14 @@ if (-not $reposResponse -or -not $reposResponse.value) {
                         if (-not $includeThisPR -and $prDetails.reviewers) {
                             foreach ($reviewer in $prDetails.reviewers) {
                                 # Check if reviewer is the team itself (not an individual)
-                                if ($reviewer.isContainer -and $reviewer.displayName -eq $TeamName) {
-                                    $includeThisPR = $true
-                                    $inclusionReason = "team assigned as reviewer"
-                                    break
+                                if ($reviewer.isContainer) {
+                                    $reviewerName = if ($reviewer.displayName) { $reviewer.displayName.Trim() } else { "" }
+                                    $teamNameTrimmed = $TeamName.Trim()
+                                    if ($reviewerName -eq $teamNameTrimmed) {
+                                        $includeThisPR = $true
+                                        $inclusionReason = "team assigned as reviewer"
+                                        break
+                                    }
                                 }
                                 # Also check if reviewer is a team member
                                 if ($reviewer.id -and $teamMemberIds.ContainsKey($reviewer.id)) {
