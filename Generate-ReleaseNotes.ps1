@@ -144,7 +144,7 @@ if (-not $useAzureCliAuth) {
         Write-Host "Enter your Personal Access Token:" -ForegroundColor Cyan
         $PAT = Read-Host -AsSecureString
         
-        if ($null -eq $PAT) {
+        if ($null -eq $PAT -or $PAT.Length -eq 0) {
             Write-Host ""
             Write-Host "ERROR: Authentication is required to proceed!" -ForegroundColor Red
             Write-Host ""
