@@ -662,6 +662,11 @@ if (-not $UseAI) {
         # Remove hard tabs
         $cleaned = $cleaned -replace "`t", '    '
         
+        # Remove markdown headers (##, ###, etc.) - convert to bold text instead
+        $cleaned = $cleaned -replace '(?m)^#{1,6}\s*', '**' -replace '\*\*([^*\n]+?)(?=\s*\*\*|\s*$)', '**$1**'
+        # Simpler approach: just remove the ## prefixes entirely
+        $cleaned = $cleaned -replace '#{1,6}\s+', ''
+        
         # Normalize whitespace
         $cleaned = $cleaned -replace '\s+', ' '
         $cleaned = $cleaned.Trim()
@@ -723,6 +728,54 @@ function Format-WorkItemSection {
         return "No work items with PRs completed in $componentName component."
     }
     
+    # Function to parse PR description into Why/What/How sections
+    function Parse-PRDescription {
+        param([string]$Description)
+        
+        $why = ""
+        $what = ""
+        $how = ""
+        
+        if ([string]::IsNullOrWhiteSpace($Description)) {
+            return @{ Why = "N/A"; What = "N/A"; How = "N/A" }
+        }
+        
+        # The description contains sections like:
+        # ## Why is this change being made?
+        # content
+        # ## What changed?
+        # content
+        # ## How was the change tested?
+        # content
+        
+        # Extract "Why" section - match from "Why" header to next header or end
+        if ($Description -match '(?si)#{0,6}\s*Why\s*(?:is this change being made)?\s*\??\s*\n+(.+?)(?=\n+#{1,6}\s*(?:What|How)|$)') {
+            $why = $matches[1].Trim()
+        }
+        
+        # Extract "What" section - match from "What" header to next header or end
+        if ($Description -match '(?si)#{0,6}\s*What\s*(?:changed)?\s*\??\s*\n+(.+?)(?=\n+#{1,6}\s*(?:Why|How)|$)') {
+            $what = $matches[1].Trim()
+        }
+        
+        # Extract "How" section - match from "How" header to next header or end
+        if ($Description -match '(?si)#{0,6}\s*How\s*(?:was (?:the change |it )?tested)?\s*\??\s*\n+(.+?)(?=\n+#{1,6}\s*(?:Why|What)|$)') {
+            $how = $matches[1].Trim()
+        }
+        
+        # Clean up extracted text - normalize whitespace but preserve some structure
+        $why = if ($why) { ($why -replace '\r?\n', ' ' -replace '\s+', ' ').Trim() } else { "N/A" }
+        $what = if ($what) { ($what -replace '\r?\n', ' ' -replace '\s+', ' ').Trim() } else { "N/A" }
+        $how = if ($how) { ($how -replace '\r?\n', ' ' -replace '\s+', ' ').Trim() } else { "N/A" }
+        
+        # Escape pipe characters for table formatting
+        $why = $why -replace '\|', '\|'
+        $what = $what -replace '\|', '\|'
+        $how = $how -replace '\|', '\|'
+        
+        return @{ Why = $why; What = $what; How = $how }
+    }
+    
     ($items | ForEach-Object {
         $wi = $_
         $cleanTitle = Format-MarkdownText -Text $wi.title
@@ -732,17 +785,16 @@ function Format-WorkItemSection {
         $prList = ($wi.pullRequests | ForEach-Object { 
             $pr = $_
             $cleanPrTitle = Format-MarkdownText -Text $pr.title
-            $cleanPrDesc = if ($pr.description) { Format-MarkdownText -Text $pr.description } else { "" }
+            $prSections = Parse-PRDescription -Description $pr.description
             
-            if ($cleanPrDesc -and $cleanPrDesc.Length -gt 0) {
-                # Limit description length for collapsible section
-                if ($cleanPrDesc.Length -gt 2000) {
-                    $cleanPrDesc = $cleanPrDesc.Substring(0, 1997) + "..."
-                }
-                "  - **PR #$($pr.id):** $cleanPrTitle | **Repo:** $($pr.repository)`n`n    <details><summary>View Details</summary>`n`n    $cleanPrDesc`n`n    </details>"
-            } else {
-                "  - **PR #$($pr.id):** $cleanPrTitle | **Repo:** $($pr.repository)"
-            }
+            $tableContent = @"
+
+    | Why | What | How |
+    |-----|------|-----|
+    | $($prSections.Why) | $($prSections.What) | $($prSections.How) |
+"@
+            
+            "  - **PR #$($pr.id):** $cleanPrTitle | **Repo:** $($pr.repository)`n`n    <details><summary>View Details</summary>`n$tableContent`n`n    </details>"
         }) -join "`n`n"
         
 @"
