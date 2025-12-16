@@ -157,7 +157,9 @@ if (-not $useAzureCliAuth) {
             Write-Host "Please either:" -ForegroundColor Yellow
             Write-Host "  1. Run 'az login' to use Azure CLI authentication, or" -ForegroundColor Gray
             Write-Host "  2. Provide a PAT when prompted, or" -ForegroundColor Gray
-            Write-Host "  3. Set `$env:AZURE_DEVOPS_PAT environment variable" -ForegroundColor Gray
+            Write-Host "  3. Set " -NoNewline -ForegroundColor Gray
+            Write-Host "`$env:AZURE_DEVOPS_PAT" -NoNewline -ForegroundColor Gray
+            Write-Host " environment variable" -ForegroundColor Gray
             exit 1
         }
         $plainPAT_Check = $null  # Clear from memory
