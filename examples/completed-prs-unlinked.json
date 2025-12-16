@@ -1,0 +1,56 @@
+{
+  "iterationName": "2025.09 Sprint 3",
+  "startDate": "2025-08-25T00:00:00Z",
+  "endDate": "2025-09-15T23:59:59Z",
+  "completedPRs": [
+    {
+      "id": 2001,
+      "title": "Update USB driver documentation",
+      "description": "## Why is this change being made?\n\nDevelopers were confused about the power management API usage patterns. Documentation needed to be updated to reflect recent API changes.\n\n## What changed?\n\nUpdated API reference documentation for USB4 power management functions. Added code examples for D3cold transitions.\n\n## How was the change tested?\n\nDocumentation was reviewed by 3 team members and validated against current code.",
+      "repository": "os-docs",
+      "sourceBranch": "users/alice/doc-updates",
+      "targetBranch": "main",
+      "closedDate": "2025-09-10T14:30:00Z",
+      "createdBy": "Alice Johnson",
+      "workItems": [
+        {
+          "id": 12345681,
+          "title": "Update USB4 documentation",
+          "type": "Task",
+          "state": "Active",
+          "areaPath": "OS\\Core\\Connectivity Platform\\Buses"
+        }
+      ]
+    },
+    {
+      "id": 2002,
+      "title": "Add I3C bus validation tests",
+      "description": "## Why is this change being made?\n\nI3C bus implementation lacked comprehensive validation tests. This change adds test coverage for edge cases.\n\n## What changed?\n\nAdded 15 new validation tests for I3C bus initialization and error handling scenarios.\n\n## How was the change tested?\n\nAll tests were run on physical hardware with various I3C devices. Tests pass on both Intel and AMD platforms.",
+      "repository": "os-tests",
+      "sourceBranch": "users/bob/i3c-tests",
+      "targetBranch": "main",
+      "closedDate": "2025-09-12T16:45:00Z",
+      "createdBy": "Bob Smith",
+      "workItems": []
+    },
+    {
+      "id": 2003,
+      "title": "Fix memory leak in USB hub driver",
+      "description": "## Why is this change being made?\n\nMemory leak was discovered during long-running stress testing. Leak occurs when USB devices are repeatedly connected and disconnected.\n\n## What changed?\n\nFixed memory allocation in USB hub device enumeration path. Added proper cleanup in error paths.\n\n## How was the change tested?\n\nRan 72-hour stress test with continuous device connect/disconnect cycles. No memory growth observed.",
+      "repository": "os-client",
+      "sourceBranch": "users/charlie/memleak-fix",
+      "targetBranch": "main",
+      "closedDate": "2025-09-14T10:15:00Z",
+      "createdBy": "Charlie Davis",
+      "workItems": [
+        {
+          "id": 12345682,
+          "title": "Investigate USB hub memory usage",
+          "type": "Bug",
+          "state": "New",
+          "areaPath": "OS\\Core\\Connectivity Platform\\Buses"
+        }
+      ]
+    }
+  ]
+}
