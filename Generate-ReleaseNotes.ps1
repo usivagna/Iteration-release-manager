@@ -15,20 +15,38 @@ param(
 )
 
 Write-Host "=== Automated Iteration Release Notes Generator ===" -ForegroundColor Cyan
-Write-Host "Project: $ProjectName" -ForegroundColor Yellow
-Write-Host "Team: $TeamName" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "Collecting required inputs..." -ForegroundColor Cyan
 Write-Host ""
 
-# Prompt for Area Paths if not provided
+# Step 0: Collect all required inputs at the start
+Write-Host "--- Input Collection ---" -ForegroundColor Yellow
+Write-Host ""
+
+# Collect Azure DevOps Organization
+if ([string]::IsNullOrEmpty($Organization)) {
+    $Organization = $env:AZURE_DEVOPS_ORG
+    if ([string]::IsNullOrEmpty($Organization)) {
+        Write-Host "Azure DevOps Organization is required." -ForegroundColor Yellow
+        $Organization = Read-Host "Enter Azure DevOps Organization name"
+        if ([string]::IsNullOrEmpty($Organization)) {
+            Write-Host ""
+            Write-Host "ERROR: Azure DevOps organization is required!" -ForegroundColor Red
+            exit 1
+        }
+    }
+}
+Write-Host "✓ Organization: $Organization" -ForegroundColor Green
+
+# Collect Area Paths
 if ($AreaPaths.Count -eq 0) {
-    Write-Host "Area Paths are required to query work items." -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "Please enter Area Paths (one per line)." -ForegroundColor Cyan
+    Write-Host "Area Paths are required to query work items." -ForegroundColor Yellow
     Write-Host "Examples:" -ForegroundColor Gray
     Write-Host "  OS\Core\Connectivity Platform\Buses" -ForegroundColor Gray
     Write-Host "  OS\Core\Connectivity Platform\Sensors" -ForegroundColor Gray
     Write-Host ""
-    Write-Host "Enter an Area Path (or press Enter without input to finish):" -ForegroundColor Cyan
+    Write-Host "Enter Area Paths (one per line, press Enter without input to finish):" -ForegroundColor Cyan
     
     $inputAreaPaths = @()
     do {
@@ -43,25 +61,26 @@ if ($AreaPaths.Count -eq 0) {
     if ($inputAreaPaths.Count -eq 0) {
         Write-Host ""
         Write-Host "ERROR: At least one Area Path is required!" -ForegroundColor Red
-        Write-Host "Please run the script again and provide Area Paths." -ForegroundColor Yellow
         exit 1
     }
     
     $AreaPaths = $inputAreaPaths
-    Write-Host ""
-    Write-Host "Using Area Paths:" -ForegroundColor Green
-    foreach ($path in $AreaPaths) {
-        Write-Host "  - $path" -ForegroundColor Gray
-    }
-    Write-Host ""
 }
-else {
-    Write-Host "Using provided Area Paths:" -ForegroundColor Green
-    foreach ($path in $AreaPaths) {
-        Write-Host "  - $path" -ForegroundColor Gray
-    }
-    Write-Host ""
+
+Write-Host ""
+Write-Host "✓ Area Paths configured:" -ForegroundColor Green
+foreach ($path in $AreaPaths) {
+    Write-Host "  - $path" -ForegroundColor Gray
 }
+
+Write-Host ""
+Write-Host "--- Configuration Summary ---" -ForegroundColor Yellow
+Write-Host "Project: $ProjectName" -ForegroundColor Gray
+Write-Host "Team: $TeamName" -ForegroundColor Gray
+Write-Host "Organization: $Organization" -ForegroundColor Gray
+Write-Host "Area Paths: $($AreaPaths.Count) configured" -ForegroundColor Gray
+Write-Host "Output Directory: $OutputDir" -ForegroundColor Gray
+Write-Host ""
 
 # Create output directory if it doesn't exist
 if (-not (Test-Path $OutputDir)) {
@@ -72,17 +91,8 @@ if (-not (Test-Path $OutputDir)) {
 # Generate timestamp for output files
 $timestamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
 
-# Get Azure DevOps organization from environment or parameters
-if ([string]::IsNullOrEmpty($Organization)) {
-    $Organization = $env:AZURE_DEVOPS_ORG
-    if ([string]::IsNullOrEmpty($Organization)) {
-        Write-Host "ERROR: Azure DevOps organization not specified!" -ForegroundColor Red
-        Write-Host "Please provide via -Organization parameter or set AZURE_DEVOPS_ORG environment variable" -ForegroundColor Yellow
-        exit 1
-    }
-}
-
 # Authentication: Try Azure CLI first, then fall back to PAT
+Write-Host "--- Authentication ---" -ForegroundColor Yellow
 $useAzureCliAuth = $false
 $headers = @{
     "Content-Type" = "application/json"
@@ -92,19 +102,22 @@ $headers = @{
 try {
     $azAccount = az account show 2>$null | ConvertFrom-Json
     if ($azAccount) {
-        Write-Host "Using Azure CLI authentication (logged in as $($azAccount.user.name))" -ForegroundColor Green
+        Write-Host "Attempting Azure CLI authentication..." -ForegroundColor Cyan
         
         # Get Azure DevOps access token using Azure CLI
         $token = az account get-access-token --resource 499b84ac-1321-427f-aa17-267ca6975798 --query accessToken -o tsv 2>$null
         if ($token) {
             $headers["Authorization"] = "Bearer $token"
             $useAzureCliAuth = $true
-            Write-Host "Successfully obtained Azure DevOps access token" -ForegroundColor Green
+            Write-Host "✓ Using Azure CLI authentication (logged in as $($azAccount.user.name))" -ForegroundColor Green
+        } else {
+            Write-Host "  Azure CLI authentication failed, falling back to PAT" -ForegroundColor Yellow
         }
     }
 }
 catch {
     # Azure CLI not available or not logged in, will try PAT
+    Write-Host "  Azure CLI not available, falling back to PAT" -ForegroundColor Yellow
 }
 
 # Fall back to PAT authentication if Azure CLI is not available
@@ -120,23 +133,44 @@ if (-not $useAzureCliAuth) {
     }
     
     if ($null -eq $PAT) {
-        Write-Host "ERROR: Authentication required!" -ForegroundColor Red
         Write-Host ""
-        Write-Host "Option 1 (Recommended): Use Azure CLI authentication" -ForegroundColor Cyan
-        Write-Host "  1. Run: az login" -ForegroundColor Gray
-        Write-Host "  2. Run: az devops configure --defaults organization=https://dev.azure.com/$Organization" -ForegroundColor Gray
-        Write-Host "  3. Run this script again" -ForegroundColor Gray
+        Write-Host "Azure CLI authentication not available." -ForegroundColor Yellow
+        Write-Host "Personal Access Token (PAT) is required." -ForegroundColor Yellow
         Write-Host ""
-        Write-Host "Option 2: Use Personal Access Token (PAT)" -ForegroundColor Cyan
-        Write-Host "  To create a PAT:" -ForegroundColor Gray
+        Write-Host "To create a PAT:" -ForegroundColor Gray
         Write-Host "  1. Go to https://dev.azure.com/$Organization/_usersSettings/tokens" -ForegroundColor Gray
         Write-Host "  2. Create a new token with 'Work Items (Read)' and 'Code (Read)' scopes" -ForegroundColor Gray
-        Write-Host "  3. Set as environment variable: `$env:AZURE_DEVOPS_PAT = 'your-pat-here'" -ForegroundColor Gray
-        Write-Host "     OR pass as SecureString: -PAT (Read-Host -AsSecureString)" -ForegroundColor Gray
-        exit 1
+        Write-Host ""
+        Write-Host "Enter your Personal Access Token:" -ForegroundColor Cyan
+        $PAT = Read-Host -AsSecureString
+        
+        # Validate that PAT was provided (check if empty) with secure memory handling
+        $BSTR_Check = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($PAT)
+        try {
+            $plainPAT_Check = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR_Check)
+            $isEmpty = [string]::IsNullOrEmpty($plainPAT_Check)
+        }
+        finally {
+            # Always clear sensitive data from memory
+            [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR_Check)
+            if ($plainPAT_Check) {
+                $plainPAT_Check = $null
+            }
+        }
+        
+        if ($isEmpty) {
+            Write-Host ""
+            Write-Host "ERROR: Authentication is required to proceed!" -ForegroundColor Red
+            Write-Host ""
+            Write-Host "Please either:" -ForegroundColor Yellow
+            Write-Host "  1. Run 'az login' to use Azure CLI authentication, or" -ForegroundColor Gray
+            Write-Host "  2. Provide a PAT when prompted, or" -ForegroundColor Gray
+            Write-Host "  3. Set `$env:AZURE_DEVOPS_PAT environment variable" -ForegroundColor Gray
+            exit 1
+        }
     }
     
-    Write-Host "Using Personal Access Token (PAT) authentication" -ForegroundColor Yellow
+    Write-Host "✓ Using Personal Access Token (PAT) authentication" -ForegroundColor Green
     
     # Convert SecureString to plain text for encoding (only in memory, never logged)
     $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($PAT)
@@ -153,6 +187,12 @@ if (-not $useAzureCliAuth) {
         }
     }
 }
+
+Write-Host ""
+Write-Host "All inputs collected successfully!" -ForegroundColor Green
+Write-Host ""
+Write-Host "=== Starting Release Notes Generation ===" -ForegroundColor Cyan
+Write-Host ""
 
 $baseUrl = "https://dev.azure.com/$Organization"
 

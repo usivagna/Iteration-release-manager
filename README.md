@@ -56,9 +56,19 @@ You can also pass Area Paths as a parameter to skip the interactive prompt:
 
 ## Setup
 
-### 1. Configure Azure DevOps Organization
+### User Input Collection
 
-Set the organization name as an environment variable:
+The scripts now collect all required inputs at the start in a consistent manner:
+
+1. **Organization**: Can be provided via parameter, environment variable, or interactive prompt
+2. **Area Paths**: Can be provided via parameter or interactive prompt  
+3. **Authentication**: Automatically tries Azure CLI, falls back to PAT (from parameter, environment, or interactive prompt)
+
+This ensures a smooth, uninterrupted execution after all inputs are collected.
+
+### 1. Configure Azure DevOps Organization (Optional)
+
+You can optionally set the organization name as an environment variable to skip the prompt:
 
 ```powershell
 $env:AZURE_DEVOPS_ORG = "your-organization-name"
@@ -69,6 +79,8 @@ Or set it permanently (Windows):
 ```powershell
 [Environment]::SetEnvironmentVariable("AZURE_DEVOPS_ORG", "your-organization-name", "User")
 ```
+
+**Note**: If not set, the script will prompt you to enter it when run.
 
 ### 2. Set Up Authentication
 
@@ -91,19 +103,19 @@ This is the most secure method as it avoids storing credentials:
 
 4. That's it! The scripts will automatically use your Azure CLI credentials.
 
-**Option B: Personal Access Token (PAT)**
+**Option B: Personal Access Token (PAT) (Optional)**
 
-If Azure CLI is not available, you can use a PAT:
+If Azure CLI is not available, you can optionally set a PAT:
 
 1. Go to <https://dev.azure.com/[your-organization]/_usersSettings/tokens>
 2. Click "New Token"
 3. Give it a descriptive name (e.g., "Release Notes Generator")
 4. Set expiration (recommended: 90 days or custom)
-5. Select scopes:
-   - **Work Items**: Read
-   - **Code**: Read
+5. Select scopes based on which script you'll use:
+   - **For Generate-ReleaseNotes.ps1**: Work Items (Read), Code (Read)
+   - **For Cleanup-WorkItems.ps1**: Work Items (Read & Write), Code (Read)
 6. Click "Create" and **copy the token** (you won't see it again!)
-7. Set the PAT as an environment variable:
+7. Optionally set the PAT as an environment variable:
 
    ```powershell
    # For current session only
@@ -113,16 +125,9 @@ If Azure CLI is not available, you can use a PAT:
    [Environment]::SetEnvironmentVariable("AZURE_DEVOPS_PAT", "your-personal-access-token", "User")
    ```
 
-   **Security Note**: The PAT is now handled as a SecureString internally and never echoed to console or logs.
+   **Security Note**: The PAT is handled as a SecureString internally and never echoed to console or logs.
 
-**Option C: Pass PAT as SecureString Parameter**
-
-For maximum security, pass the PAT as a SecureString directly:
-
-```powershell
-$securePAT = Read-Host -AsSecureString -Prompt "Enter PAT"
-.\Generate-ReleaseNotes.ps1 -PAT $securePAT
-```
+**Note**: If neither Azure CLI nor environment PAT is available, the script will prompt you to enter the PAT securely when run.
 
 ### 3. (Optional) AI-Powered Generation
 
@@ -145,14 +150,18 @@ The script generates `-prompt.txt` files alongside the summaries containing rich
 .\Generate-ReleaseNotes.ps1
 ```
 
-This will:
+The script will collect all necessary inputs at the start:
 
-1. Prompt you to enter Area Paths (if not provided as a parameter)
-2. Authenticate using Azure CLI (if logged in) or PAT from environment variable
-3. Query the most recently completed iteration
-4. Collect all work items and PR descriptions
-5. Generate enhanced summaries with PR details (template-based by default)
-6. Create AI prompt files for optional AI-powered generation
+1. **Organization**: Prompts if not set via environment variable or parameter
+2. **Area Paths**: Prompts if not provided as a parameter
+3. **Authentication**: Attempts Azure CLI, then environment PAT, then prompts for PAT if needed
+
+After inputs are collected, the script runs uninterrupted to:
+
+4. Query the most recently completed iteration
+5. Collect all work items and PR descriptions
+6. Generate enhanced summaries with PR details (template-based by default)
+7. Create AI prompt files for optional AI-powered generation
 
 ### AI-Powered Generation (Default)
 
@@ -298,36 +307,50 @@ output/
 
 ### Running for the First Time
 
-1. **Set up authentication** (see Setup section above)
-2. **Open PowerShell**
-3. **Navigate to the repository**:
+**Simplest approach (interactive mode):**
+
+1. **Open PowerShell**
+2. **Navigate to the repository**:
 
    ```powershell
    cd c:\path\to\Iteration-release-manager
    ```
 
-4. **If using Azure CLI (recommended)**:
-
-   ```powershell
-   az login
-   $env:AZURE_DEVOPS_ORG = "your-org"
-   ```
-
-5. **OR if using PAT**:
-
-   ```powershell
-   $env:AZURE_DEVOPS_ORG = "your-org"
-   $env:AZURE_DEVOPS_PAT = "your-pat"
-   ```
-
-6. **Run the script**:
+3. **Run the script**:
 
    ```powershell
    .\Generate-ReleaseNotes.ps1
    ```
 
-7. **Wait for completion** (usually takes 10-30 seconds depending on data volume)
-8. **Review generated files** in the `output` folder
+4. **Provide inputs when prompted**:
+   - Organization name (if not set via environment variable)
+   - Area Paths (one per line, press Enter to finish)
+   - PAT (if Azure CLI is not available and environment PAT is not set)
+
+5. **Wait for completion** (usually takes 10-30 seconds depending on data volume)
+6. **Review generated files** in the `output` folder
+
+**Alternative approach (pre-configure authentication):**
+
+1. **If using Azure CLI (recommended)**:
+
+   ```powershell
+   az login
+   $env:AZURE_DEVOPS_ORG = "your-org"  # Optional
+   ```
+
+2. **OR if using PAT**:
+
+   ```powershell
+   $env:AZURE_DEVOPS_ORG = "your-org"  # Optional
+   $env:AZURE_DEVOPS_PAT = "your-pat"  # Optional
+   ```
+
+3. **Run the script** (will skip prompts for pre-configured values):
+
+   ```powershell
+   .\Generate-ReleaseNotes.ps1
+   ```
 
 ### Regular Use (e.g., Every Sprint)
 
@@ -548,13 +571,18 @@ In addition to release notes generation, this repository includes a work item cl
 .\Cleanup-WorkItems.ps1 -DryRun
 ```
 
-This will:
+The script will collect all necessary inputs at the start:
 
-1. Prompt you to enter Area Paths (if not provided as a parameter)
-2. Query the most recently completed iteration
-3. Identify work items that need cleanup
-4. Display what would be changed without making any actual updates
-5. Generate a report of potential changes
+1. **Organization**: Prompts if not set via environment variable or parameter
+2. **Area Paths**: Prompts if not provided as a parameter
+3. **Authentication**: Attempts Azure CLI, then environment PAT, then prompts for PAT if needed
+
+After inputs are collected, the script runs uninterrupted to:
+
+4. Query the most recently completed iteration
+5. Identify work items that need cleanup
+6. Display what would be changed without making any actual updates
+7. Generate a report of potential changes
 
 #### Live Execution
 
@@ -562,15 +590,14 @@ This will:
 .\Cleanup-WorkItems.ps1
 ```
 
-This will:
+The script will collect all necessary inputs at the start (same as Dry Run mode), then:
 
-1. Prompt you to enter Area Paths (if not provided as a parameter)
-2. Query the most recently completed iteration
-3. Display a summary of work items to be updated
-4. **Prompt for confirmation** before making any changes
-5. Update iteration paths for items closed within the iteration dates (after confirmation)
-6. Update rank fields for child items to match their parents (after confirmation)
-7. Generate a report of all changes made
+4. Query the most recently completed iteration
+5. Identify and display a summary of work items to be updated
+6. **Prompt for confirmation** before making any changes
+7. Update iteration paths for items closed within the iteration dates (after confirmation)
+8. Update rank fields for child items to match their parents (after confirmation)
+9. Generate a report of all changes made
 
 **Note**: The script will ask you to confirm (Y/N) before applying any changes to Azure DevOps. This safety feature ensures you review the changes before they are applied.
 
