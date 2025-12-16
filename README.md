@@ -559,66 +559,112 @@ In addition to release notes generation, this repository includes a work item cl
 **Key Features**:
 
 - ✅ **Dry Run Mode**: Preview changes before applying them
+- ✅ **Task Selection**: Run all tasks or select specific tasks to run
+- ✅ **Interactive Menu**: Choose tasks interactively when no switches are provided
+- ✅ **Bug Filtering**: Exclude "Bug" work item types by default (can be included with `-IncludeBugs`)
 - ✅ **Iteration-Aware**: Automatically finds the previous completed iteration
 - ✅ **Safe Updates**: Only updates items that need correction
 - ✅ **Detailed Reporting**: Generates JSON report of all changes
 
 ### Cleanup Script Usage
 
-#### Dry Run (Recommended First)
+#### Interactive Mode (Recommended)
+
+Run the script without task switches to get an interactive menu:
 
 ```powershell
 .\Cleanup-WorkItems.ps1 -DryRun
 ```
 
-The script will collect all necessary inputs at the start:
+The script will:
 
-1. **Organization**: Prompts if not set via environment variable or parameter
-2. **Area Paths**: Prompts if not provided as a parameter
-3. **Authentication**: Attempts Azure CLI, then environment PAT, then prompts for PAT if needed
+1. Collect all necessary inputs (Organization, Area Paths, Authentication)
+2. Show an interactive menu to select which tasks to run:
+   - Option 1: Run ALL cleanup tasks
+   - Option 2: Task 1 - Update iteration paths for closed items
+   - Option 3: Task 2 - Sync child item ranks with parents
+   - Option 4: Task 3 - Move incomplete items to backlog
+   - Option 5: Task 4 - Mark deliverables as completed
+   - Option 6: Select multiple tasks (custom combination)
+3. Execute the selected tasks in dry run mode
 
-After inputs are collected, the script runs uninterrupted to:
+#### Run Specific Tasks
 
-4. Query the most recently completed iteration
-5. Identify work items that need cleanup
-6. Display what would be changed without making any actual updates
-7. Generate a report of potential changes
+**Run only Task 1 (update iteration paths):**
+
+```powershell
+.\Cleanup-WorkItems.ps1 -Task1 -DryRun
+# OR
+.\Cleanup-WorkItems.ps1 -UpdateIterationPaths -DryRun
+```
+
+**Run only Task 3 (move incomplete items to backlog):**
+
+```powershell
+.\Cleanup-WorkItems.ps1 -Task3 -DryRun
+# OR
+.\Cleanup-WorkItems.ps1 -MoveToBacklog -DryRun
+```
+
+**Run multiple specific tasks:**
+
+```powershell
+.\Cleanup-WorkItems.ps1 -Task1 -Task2 -DryRun
+```
+
+**Run all tasks explicitly:**
+
+```powershell
+.\Cleanup-WorkItems.ps1 -AllTasks -DryRun
+```
+
+#### Bug Filtering
+
+By default, "Bug" work item types are **excluded** from cleanup operations. To include bugs:
+
+```powershell
+# Include bugs in cleanup (not default)
+.\Cleanup-WorkItems.ps1 -IncludeBugs -DryRun
+
+# Run specific task and include bugs
+.\Cleanup-WorkItems.ps1 -Task3 -IncludeBugs -DryRun
+```
 
 #### Live Execution
 
+After testing with `-DryRun`, remove the flag to apply changes:
+
 ```powershell
+# Interactive mode - live execution
 .\Cleanup-WorkItems.ps1
+
+# Specific task - live execution
+.\Cleanup-WorkItems.ps1 -Task1
+
+# All tasks with bugs included - live execution
+.\Cleanup-WorkItems.ps1 -AllTasks -IncludeBugs
 ```
 
-The script will collect all necessary inputs at the start (same as Dry Run mode), then:
+**Note**: The script will ask you to confirm (Y/N) before applying any changes to Azure DevOps.
 
-4. Query the most recently completed iteration
-5. Identify and display a summary of work items to be updated
-6. **Prompt for confirmation** before making any changes
-7. Update iteration paths for items closed within the iteration dates (after confirmation)
-8. Update rank fields for child items to match their parents (after confirmation)
-9. Generate a report of all changes made
+#### Additional Options
 
-**Note**: The script will ask you to confirm (Y/N) before applying any changes to Azure DevOps. This safety feature ensures you review the changes before they are applied.
-
-#### Cleanup Advanced Usage
-
-**Target specific iteration:****
+**Target specific iteration:**
 
 ```powershell
-.\Cleanup-WorkItems.ps1 -SpecificIteration "2025.09 Sprint 3" -DryRun
+.\Cleanup-WorkItems.ps1 -SpecificIteration "2025.09 Sprint 3" -Task1 -DryRun
 ```
 
 **Use current iteration:**
 
 ```powershell
-.\Cleanup-WorkItems.ps1 -UseCurrentIteration
+.\Cleanup-WorkItems.ps1 -UseCurrentIteration -Task2 -DryRun
 ```
 
 **Custom output directory:**
 
 ```powershell
-.\Cleanup-WorkItems.ps1 -OutputDir "C:\WorkItemReports"
+.\Cleanup-WorkItems.ps1 -OutputDir "C:\WorkItemReports" -AllTasks -DryRun
 ```
 
 **Full example with all parameters:**
@@ -632,6 +678,8 @@ $securePAT = Read-Host -AsSecureString -Prompt "Enter PAT"
     -TeamName "ft_buses" `
     -AreaPaths @("OS\Core\Connectivity Platform\Buses", "OS\Core\Connectivity Platform\Sensors") `
     -OutputDir ".\output" `
+    -Task1 -Task3 `
+    -IncludeBugs `
     -DryRun
 ```
 

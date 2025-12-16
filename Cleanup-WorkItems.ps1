@@ -5,10 +5,23 @@
 # Features:
 # - Dry Run Mode: Use -DryRun to preview changes without making any modifications
 # - Automated Tagging: All modified items are tagged with "AutomatedCleanup" and a date-based tag for tracking
+# - Task Selection: Run all tasks or select specific tasks to run
+# - Bug Filtering: Exclude "Bug" work item types by default (use -IncludeBugs to include them)
 # - Task 1: Update closed items to the iteration they were closed in
 # - Task 2: Sync child item ranks with parent ranks
 # - Task 3: Move incomplete items from past iterations to backlog
 # - Task 4: Mark deliverables as completed when all child tasks are closed
+#
+# Parameters:
+# - Task Selection (if none specified, interactive menu will be shown):
+#   -Task1 / -UpdateIterationPaths: Run only Task 1 (update iteration paths)
+#   -Task2 / -SyncRanks: Run only Task 2 (sync ranks)
+#   -Task3 / -MoveToBacklog: Run only Task 3 (move incomplete items)
+#   -Task4 / -MarkCompleted: Run only Task 4 (mark deliverables completed)
+#   -AllTasks: Run all tasks (default if no interactive menu)
+# - Bug Filtering:
+#   By default, "Bug" work item types are EXCLUDED from cleanup operations
+#   -IncludeBugs: Include "Bug" work item types in cleanup operations
 
 param(
     [string]$ProjectName = "OS",
@@ -19,7 +32,19 @@ param(
     [switch]$UseCurrentIteration = $false,
     [string]$SpecificIteration = "",
     [switch]$DryRun = $false,
-    [string[]]$AreaPaths = @()
+    [string[]]$AreaPaths = @(),
+    # Task selection switches
+    [switch]$Task1 = $false,
+    [switch]$UpdateIterationPaths = $false,
+    [switch]$Task2 = $false,
+    [switch]$SyncRanks = $false,
+    [switch]$Task3 = $false,
+    [switch]$MoveToBacklog = $false,
+    [switch]$Task4 = $false,
+    [switch]$MarkCompleted = $false,
+    [switch]$AllTasks = $false,
+    # Bug filtering switch
+    [switch]$IncludeBugs = $false
 )
 
 # Tags to identify items modified by this script
@@ -211,6 +236,113 @@ if (-not $useAzureCliAuth) {
 Write-Host ""
 Write-Host "All inputs collected successfully!" -ForegroundColor Green
 Write-Host ""
+
+# Determine bug filtering behavior (default is to exclude bugs)
+$shouldExcludeBugs = -not $IncludeBugs
+if ($shouldExcludeBugs) {
+    Write-Host "Bug Filtering: Bugs will be EXCLUDED from cleanup operations (default)" -ForegroundColor Yellow
+} else {
+    Write-Host "Bug Filtering: Bugs will be INCLUDED in cleanup operations" -ForegroundColor Yellow
+}
+Write-Host ""
+
+# Determine which tasks to run
+# Normalize task flags (handle aliases)
+$runTask1 = $Task1 -or $UpdateIterationPaths
+$runTask2 = $Task2 -or $SyncRanks
+$runTask3 = $Task3 -or $MoveToBacklog
+$runTask4 = $Task4 -or $MarkCompleted
+
+# Check if any task flags were specified
+$anyTaskSpecified = $runTask1 -or $runTask2 -or $runTask3 -or $runTask4 -or $AllTasks
+
+if ($AllTasks) {
+    # Run all tasks
+    $runTask1 = $true
+    $runTask2 = $true
+    $runTask3 = $true
+    $runTask4 = $true
+    Write-Host "Task Selection: Running ALL cleanup tasks" -ForegroundColor Green
+    Write-Host ""
+} elseif ($anyTaskSpecified) {
+    # Run only the selected tasks
+    Write-Host "Task Selection: Running selected tasks:" -ForegroundColor Green
+    if ($runTask1) { Write-Host "  ✓ Task 1: Update iteration paths for closed items" -ForegroundColor Gray }
+    if ($runTask2) { Write-Host "  ✓ Task 2: Sync child item ranks with parents" -ForegroundColor Gray }
+    if ($runTask3) { Write-Host "  ✓ Task 3: Move incomplete items to backlog" -ForegroundColor Gray }
+    if ($runTask4) { Write-Host "  ✓ Task 4: Mark deliverables as completed" -ForegroundColor Gray }
+    Write-Host ""
+} else {
+    # No task flags specified - show interactive menu
+    Write-Host "=== Task Selection Menu ===" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Choose which cleanup tasks to run:" -ForegroundColor Yellow
+    Write-Host "  1 - Run ALL cleanup tasks" -ForegroundColor White
+    Write-Host "  2 - Task 1: Update iteration paths for closed items" -ForegroundColor White
+    Write-Host "  3 - Task 2: Sync child item ranks with parents" -ForegroundColor White
+    Write-Host "  4 - Task 3: Move incomplete items to backlog" -ForegroundColor White
+    Write-Host "  5 - Task 4: Mark deliverables as completed" -ForegroundColor White
+    Write-Host "  6 - Select multiple tasks (custom combination)" -ForegroundColor White
+    Write-Host ""
+    Write-Host "Enter your choice (1-6): " -ForegroundColor Cyan -NoNewline
+    $menuChoice = Read-Host
+    Write-Host ""
+    
+    switch ($menuChoice) {
+        "1" {
+            $runTask1 = $true
+            $runTask2 = $true
+            $runTask3 = $true
+            $runTask4 = $true
+            Write-Host "Selected: Run ALL cleanup tasks" -ForegroundColor Green
+        }
+        "2" {
+            $runTask1 = $true
+            Write-Host "Selected: Task 1 - Update iteration paths for closed items" -ForegroundColor Green
+        }
+        "3" {
+            $runTask2 = $true
+            Write-Host "Selected: Task 2 - Sync child item ranks with parents" -ForegroundColor Green
+        }
+        "4" {
+            $runTask3 = $true
+            Write-Host "Selected: Task 3 - Move incomplete items to backlog" -ForegroundColor Green
+        }
+        "5" {
+            $runTask4 = $true
+            Write-Host "Selected: Task 4 - Mark deliverables as completed" -ForegroundColor Green
+        }
+        "6" {
+            Write-Host "Select tasks to run (Y/N for each):" -ForegroundColor Yellow
+            Write-Host ""
+            Write-Host "Task 1: Update iteration paths for closed items? (Y/N): " -ForegroundColor Cyan -NoNewline
+            $runTask1 = (Read-Host) -match '^[Yy]'
+            Write-Host "Task 2: Sync child item ranks with parents? (Y/N): " -ForegroundColor Cyan -NoNewline
+            $runTask2 = (Read-Host) -match '^[Yy]'
+            Write-Host "Task 3: Move incomplete items to backlog? (Y/N): " -ForegroundColor Cyan -NoNewline
+            $runTask3 = (Read-Host) -match '^[Yy]'
+            Write-Host "Task 4: Mark deliverables as completed? (Y/N): " -ForegroundColor Cyan -NoNewline
+            $runTask4 = (Read-Host) -match '^[Yy]'
+            Write-Host ""
+            Write-Host "Selected tasks:" -ForegroundColor Green
+            if ($runTask1) { Write-Host "  ✓ Task 1: Update iteration paths" -ForegroundColor Gray }
+            if ($runTask2) { Write-Host "  ✓ Task 2: Sync ranks" -ForegroundColor Gray }
+            if ($runTask3) { Write-Host "  ✓ Task 3: Move to backlog" -ForegroundColor Gray }
+            if ($runTask4) { Write-Host "  ✓ Task 4: Mark completed" -ForegroundColor Gray }
+            if (-not ($runTask1 -or $runTask2 -or $runTask3 -or $runTask4)) {
+                Write-Host ""
+                Write-Host "ERROR: No tasks selected. At least one task must be selected." -ForegroundColor Red
+                exit 1
+            }
+        }
+        default {
+            Write-Host "ERROR: Invalid choice. Please run the script again and select 1-6." -ForegroundColor Red
+            exit 1
+        }
+    }
+    Write-Host ""
+}
+
 Write-Host "=== Starting Work Item Cleanup ===" -ForegroundColor Cyan
 Write-Host ""
 
@@ -329,16 +461,32 @@ Write-Host ""
 # Step 2: Query work items that need cleanup
 Write-Host "Step 2: Querying work items that need cleanup..." -ForegroundColor Cyan
 
-# Task 1: Find closed items that should be assigned to correct iteration (all past iterations)
-Write-Host "  Task 1: Finding closed items with incorrect iteration paths..." -ForegroundColor Yellow
+# Initialize arrays for all tasks (will remain empty if task is skipped)
+$itemsToUpdateIteration = @()
+$itemsToUpdateRank = @()
+$itemsToMoveToNext = @()
+$itemsToMarkCompleted = @()
 
-$areaPathConditions = ($AreaPaths | ForEach-Object { "[System.AreaPath] UNDER '$_'" }) -join " OR "
-$wiql = @"
+# Task 1: Find closed items that should be assigned to correct iteration (all past iterations)
+if ($runTask1) {
+    Write-Host "  Task 1: Finding closed items with incorrect iteration paths..." -ForegroundColor Yellow
+
+    $areaPathConditions = ($AreaPaths | ForEach-Object { "[System.AreaPath] UNDER '$_'" }) -join " OR "
+    
+    # Build bug filter clause
+    $bugFilterClause = if ($shouldExcludeBugs) {
+        "AND [System.WorkItemType] <> 'Bug'"
+    } else {
+        ""
+    }
+    
+    $wiql = @"
 SELECT [System.Id], [System.Title], [System.WorkItemType], [System.State], [System.AreaPath], [System.IterationPath], [Microsoft.VSTS.Common.ClosedDate], [Microsoft.VSTS.Scheduling.StoryPoints], [Microsoft.VSTS.Common.StackRank]
 FROM WorkItems
 WHERE ($areaPathConditions)
 AND [System.State] IN ('Closed', 'Done', 'Completed')
 AND [Microsoft.VSTS.Common.ClosedDate] <> ''
+$bugFilterClause
 ORDER BY [System.Id]
 "@
 
@@ -349,7 +497,6 @@ $wiqlQuery = @{
 $wiqlUrl = "$baseUrl/$ProjectName/_apis/wit/wiql?api-version=7.1-preview.2"
 $wiqlResult = Invoke-ADORestAPI -Uri $wiqlUrl -Method POST -Body $wiqlQuery
 
-$itemsToUpdateIteration = @()
 if ($wiqlResult -and $wiqlResult.workItems) {
     $workItemIds = $wiqlResult.workItems | ForEach-Object { $_.id }
     Write-Host "  Found $($workItemIds.Count) closed items to check" -ForegroundColor Gray
@@ -408,20 +555,32 @@ if ($wiqlResult -and $wiqlResult.workItems) {
 } else {
     Write-Host "  No closed items found that need iteration path update" -ForegroundColor Gray
 }
+} else {
+    Write-Host "  Task 1: Skipped (not selected)" -ForegroundColor Gray
+}
 
 # Task 2: Find child work items whose rank doesn't match parent rank
-Write-Host "  Task 2: Finding child items with mismatched rank..." -ForegroundColor Yellow
+if ($runTask2) {
+    Write-Host "  Task 2: Finding child items with mismatched rank..." -ForegroundColor Yellow
 
-$sourceAreaPathConditions = ($AreaPaths | ForEach-Object { "([Source].[System.AreaPath] UNDER '$_')" }) -join "`n    OR "
-$targetAreaPathConditions = ($AreaPaths | ForEach-Object { "([Target].[System.AreaPath] UNDER '$_')" }) -join "`n    OR "
+    $sourceAreaPathConditions = ($AreaPaths | ForEach-Object { "([Source].[System.AreaPath] UNDER '$_')" }) -join "`n    OR "
+    $targetAreaPathConditions = ($AreaPaths | ForEach-Object { "([Target].[System.AreaPath] UNDER '$_')" }) -join "`n    OR "
+    
+    # Build bug filter clause for WorkItemLinks query
+    $bugFilterLinkClause = if ($shouldExcludeBugs) {
+        "AND [Source].[System.WorkItemType] <> 'Bug'`nAND [Target].[System.WorkItemType] <> 'Bug'"
+    } else {
+        ""
+    }
 
-$parentChildWiql = @"
+    $parentChildWiql = @"
 SELECT [System.Id], [System.Title], [System.WorkItemType], [System.State], [System.Parent], [Microsoft.VSTS.Common.StackRank]
 FROM WorkItemLinks
 WHERE ($sourceAreaPathConditions)
 AND ($targetAreaPathConditions)
 AND [System.Links.LinkType] = 'System.LinkTypes.Hierarchy-Forward'
 AND [Target].[System.IterationPath] UNDER '$($iterationInfo.iterationPath)'
+$bugFilterLinkClause
 MODE (MustContain)
 "@
 
@@ -431,7 +590,6 @@ $parentChildQuery = @{
 
 $pcWiqlResult = Invoke-ADORestAPI -Uri $wiqlUrl -Method POST -Body $parentChildQuery
 
-$itemsToUpdateRank = @()
 if ($pcWiqlResult -and $pcWiqlResult.workItemRelations) {
     Write-Host "  Found $($pcWiqlResult.workItemRelations.Count) parent-child relationships" -ForegroundColor Gray
     
@@ -510,20 +668,32 @@ if ($pcWiqlResult -and $pcWiqlResult.workItemRelations) {
 } else {
     Write-Host "  No parent-child relationships found" -ForegroundColor Gray
 }
+} else {
+    Write-Host "  Task 2: Skipped (not selected)" -ForegroundColor Gray
+}
 
 # Task 3: Find incomplete items in past iterations
-Write-Host "  Task 3: Finding incomplete items in past iterations..." -ForegroundColor Yellow
+if ($runTask3) {
+    Write-Host "  Task 3: Finding incomplete items in past iterations..." -ForegroundColor Yellow
 
-$itemsToMoveToNext = @()
-if ($backlogIterationInfo) {
-    # Query for items that are not completed and have an iteration path set
-    # We'll filter for past iterations after getting the results
-    # Note: We don't exclude any specific iteration path in the query since we'll filter by end date
-    $incompleteWiql = @"
+    if ($backlogIterationInfo) {
+        # Query for items that are not completed and have an iteration path set
+        # We'll filter for past iterations after getting the results
+        # Note: We don't exclude any specific iteration path in the query since we'll filter by end date
+        
+        # Build bug filter clause
+        $bugFilterClause = if ($shouldExcludeBugs) {
+            "AND [System.WorkItemType] <> 'Bug'"
+        } else {
+            ""
+        }
+        
+        $incompleteWiql = @"
 SELECT [System.Id], [System.Title], [System.WorkItemType], [System.State], [System.AreaPath], [System.IterationPath], [System.Tags]
 FROM WorkItems
 WHERE ($areaPathConditions)
 AND [System.State] NOT IN ('Closed', 'Done', 'Completed', 'Removed')
+$bugFilterClause
 ORDER BY [System.IterationPath], [System.Id]
 "@
 
@@ -588,17 +758,21 @@ ORDER BY [System.IterationPath], [System.Id]
     } else {
         Write-Host "  No incomplete items found in past iterations" -ForegroundColor Gray
     }
+    } else {
+        Write-Host "  No backlog iteration found - skipping incomplete items check" -ForegroundColor Gray
+    }
 } else {
-    Write-Host "  No backlog iteration found - skipping incomplete items check" -ForegroundColor Gray
+    Write-Host "  Task 3: Skipped (not selected)" -ForegroundColor Gray
 }
 
 # Task 4: Find deliverables that should be marked as Completed
-Write-Host "  Task 4: Finding Started deliverables with all closed tasks (all iterations)..." -ForegroundColor Yellow
+if ($runTask4) {
+    Write-Host "  Task 4: Finding Started deliverables with all closed tasks (all iterations)..." -ForegroundColor Yellow
 
-$itemsToMarkCompleted = @()
-
-# Query for all deliverables in any iteration that are in "Started" state
-$deliverablesWiql = @"
+    # Query for all deliverables in any iteration that are in "Started" state
+    # Note: We don't filter bugs here because deliverables are typically not bugs
+    # The bug filter is applied when checking child items
+    $deliverablesWiql = @"
 SELECT [System.Id], [System.Title], [System.WorkItemType], [System.State], [System.AreaPath], [System.IterationPath]
 FROM WorkItems
 WHERE ($areaPathConditions)
@@ -694,6 +868,9 @@ if ($deliverablesResult -and $deliverablesResult.workItems) {
     Write-Host "  Found $($itemsToMarkCompleted.Count) deliverables to mark as Completed (across all iterations)" -ForegroundColor Green
 } else {
     Write-Host "  No Started deliverables found in iteration" -ForegroundColor Gray
+}
+} else {
+    Write-Host "  Task 4: Skipped (not selected)" -ForegroundColor Gray
 }
 
 Write-Host ""
