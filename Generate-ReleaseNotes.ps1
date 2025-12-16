@@ -851,9 +851,9 @@ if (-not $UseAI) {
         $how = if ($how) { ($how -replace '\r?\n', ' ' -replace '\s+', ' ').Trim() } else { "N/A" }
         
         # Escape pipe characters for table formatting
-        $why = $why -replace '\|', '\|'
-        $what = $what -replace '\|', '\|'
-        $how = $how -replace '\|', '\|'
+        $why = $why -replace '\|', '&#124;'
+        $what = $what -replace '\|', '&#124;'
+        $how = $how -replace '\|', '&#124;'
         
         return @{ Why = $why; What = $what; How = $how }
     }
