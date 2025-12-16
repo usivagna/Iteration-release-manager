@@ -17,7 +17,10 @@ This feature ensures **100% visibility** into all code changes during the iterat
 ## What Gets Captured
 
 The feature queries all repositories in the project and finds PRs that:
-1. Were **created by members of the specified Azure DevOps team**
+1. Are **associated with the specified Azure DevOps team** by one of:
+   - Created by a team member
+   - Team assigned as a reviewer
+   - Reviewed by a team member
 2. Have a **status of "completed"**
 3. Were **closed during the iteration date range** (between start and end dates)
 4. Are **NOT already linked** to work items that were completed in the iteration
@@ -115,7 +118,7 @@ completed in this iteration.
 
 ## How It Works
 
-### Step 2b: Query Completed PRs from Team Members
+### Step 2b: Query Completed PRs Associated with Team
 After querying completed work items (Step 2), the script adds a new step:
 
 1. **Get team members** from the specified Azure DevOps team
@@ -124,7 +127,12 @@ After querying completed work items (Step 2), the script adds a new step:
    - Query all PRs with status = "completed"
    - Filter by closed date within iteration range
 4. **For each PR**:
-   - Check if creator is a team member (skip if not)
+   - Get PR details including reviewers
+   - Check if PR is associated with team by:
+     * Creator is a team member, OR
+     * Team is assigned as a reviewer, OR
+     * A team member is assigned as a reviewer
+   - Skip if not associated with team
    - Check if it's already linked to a completed work item (skip if yes)
    - Get linked work items (even if not completed)
    - Add to unlinked PRs collection

@@ -537,21 +537,61 @@ if (-not $reposResponse -or -not $reposResponse.value) {
                         continue
                     }
                     
-                    # Filter by team membership - only include PRs created by team members
-                    if ($teamMemberIds.Count -gt 0) {
-                        $creatorId = $pr.createdBy.id
-                        if (-not $teamMemberIds.ContainsKey($creatorId)) {
-                            Write-Host "      Skipping PR #$($pr.pullRequestId) - created by non-team member ($($pr.createdBy.displayName))" -ForegroundColor Gray
-                            continue
-                        }
+                    # Get PR details to check reviewers
+                    $prDetailsUrl = "$baseUrl/$ProjectName/_apis/git/repositories/$($repo.id)/pullrequests/$($pr.pullRequestId)?api-version=7.1-preview.1"
+                    $prDetails = Invoke-ADORestAPI -Uri $prDetailsUrl
+                    
+                    if (-not $prDetails) {
+                        Write-Host "      Skipping PR #$($pr.pullRequestId) - could not retrieve PR details" -ForegroundColor Gray
+                        continue
                     }
                     
-                    Write-Host "      Processing PR #$($pr.pullRequestId): $($pr.title) by $($pr.createdBy.displayName)" -ForegroundColor Cyan
+                    # Filter by team membership - include PRs where:
+                    # 1. Creator is a team member, OR
+                    # 2. Team is assigned as a reviewer
+                    $includeThisPR = $false
+                    $inclusionReason = ""
+                    
+                    if ($teamMemberIds.Count -gt 0) {
+                        # Check if creator is a team member
+                        $creatorId = $pr.createdBy.id
+                        if ($teamMemberIds.ContainsKey($creatorId)) {
+                            $includeThisPR = $true
+                            $inclusionReason = "created by team member ($($pr.createdBy.displayName))"
+                        }
+                        
+                        # Check if team is assigned as a reviewer
+                        if (-not $includeThisPR -and $prDetails.reviewers) {
+                            foreach ($reviewer in $prDetails.reviewers) {
+                                # Check if reviewer is the team itself (not an individual)
+                                if ($reviewer.isContainer -and $reviewer.displayName -eq $TeamName) {
+                                    $includeThisPR = $true
+                                    $inclusionReason = "team assigned as reviewer"
+                                    break
+                                }
+                                # Also check if reviewer is a team member
+                                if ($reviewer.id -and $teamMemberIds.ContainsKey($reviewer.id)) {
+                                    $includeThisPR = $true
+                                    $inclusionReason = "reviewed by team member ($($reviewer.displayName))"
+                                    break
+                                }
+                            }
+                        }
+                        
+                        if (-not $includeThisPR) {
+                            Write-Host "      Skipping PR #$($pr.pullRequestId) - not associated with team ($($pr.createdBy.displayName))" -ForegroundColor Gray
+                            continue
+                        }
+                    } else {
+                        # No team filtering
+                        $includeThisPR = $true
+                        $inclusionReason = "no team filtering"
+                    }
+                    
+                    Write-Host "      Processing PR #$($pr.pullRequestId): $($pr.title) ($inclusionReason)" -ForegroundColor Cyan
                     
                     # Get work items linked to this PR
                     $prWorkItems = @()
-                    $prDetailsUrl = "$baseUrl/$ProjectName/_apis/git/repositories/$($repo.id)/pullrequests/$($pr.pullRequestId)?api-version=7.1-preview.1"
-                    $prDetails = Invoke-ADORestAPI -Uri $prDetailsUrl
                     
                     if ($prDetails) {
                         # Get work item references from PR
@@ -1046,7 +1086,7 @@ if ($prsByRepo) {
 
 ## Completed PRs Not Linked to Completed Work Items
 
-This section lists all Pull Requests created by **$TeamName team members** that were completed during the iteration period but are NOT linked to work items that were completed in this iteration.
+This section lists all Pull Requests associated with **$TeamName team** (created by team members or reviewed by team) that were completed during the iteration period but are NOT linked to work items that were completed in this iteration.
 
 $(
 if ($allCompletedPRs -and $allCompletedPRs.Count -gt 0) {
