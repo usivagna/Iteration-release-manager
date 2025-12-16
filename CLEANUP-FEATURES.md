@@ -36,31 +36,41 @@ The final summary will indicate: `[DRY RUN MODE] No changes were made`
 
 ## 2. Automated Tagging
 
-### Tag Name
-`AutomatedCleanup`
+### Tag Names
+- `AutomatedCleanup` - Identifies all items modified by the script
+- `AutomatedCleanup-YYYY-MM-DD` - Date-based tag for correlation and analysis
 
 ### Description
-- **Purpose**: Track all work items modified by the cleanup script
+- **Purpose**: Track all work items modified by the cleanup script with both general and date-specific tags
 - **Behavior**:
-  - Every work item modified by the script receives the `AutomatedCleanup` tag
+  - Every work item modified by the script receives both the `AutomatedCleanup` tag and a date-based tag
+  - The date-based tag format is `AutomatedCleanup-YYYY-MM-DD` (e.g., `AutomatedCleanup-2025-12-16`)
   - Tags are appended to existing tags (no tags are lost)
   - Multiple runs of the script won't duplicate the tag
-  - The tag is added along with the actual changes in a single API call
+  - Both tags are added along with the actual changes in a single API call
 
 ### Benefits
 1. **Audit Trail**: Easy to find all items touched by automation
 2. **Troubleshooting**: Quickly identify items to review if issues arise
 3. **Reporting**: Create queries to analyze the impact of automated cleanup
 4. **Rollback Support**: If needed, you can query by tag to find items to review/revert
+5. **Date-Based Correlation**: The date-based tag enables tracking changes by specific dates
+6. **Improved Analysis**: Filter and analyze changes made on particular days
 
 ### Finding Tagged Items
-In Azure DevOps, you can query for items with this tag:
+In Azure DevOps, you can query for items with these tags:
 
+**Find all items modified by the script:**
 ```
 System.Tags Contains "AutomatedCleanup"
 ```
 
-Or combine with other filters:
+**Find items modified on a specific date:**
+```
+System.Tags Contains "AutomatedCleanup-2025-12-16"
+```
+
+**Combine with other filters:**
 ```
 System.Tags Contains "AutomatedCleanup" 
 AND System.ChangedDate >= @Today - 7
@@ -74,22 +84,22 @@ All four types of changes add the tag:
 
 1. **Iteration Path Updates** (Task 1)
    - Updates: `System.IterationPath`
-   - Adds: `AutomatedCleanup` tag
+   - Adds: `AutomatedCleanup` and `AutomatedCleanup-YYYY-MM-DD` tags
    - Adds: History comment
 
 2. **Rank Updates** (Task 2)
    - Updates: `Microsoft.VSTS.Common.StackRank`
-   - Adds: `AutomatedCleanup` tag
+   - Adds: `AutomatedCleanup` and `AutomatedCleanup-YYYY-MM-DD` tags
    - Adds: History comment
 
 3. **Move to Backlog** (Task 3)
    - Updates: `System.IterationPath`
-   - Adds: `AutomatedCleanup` tag
+   - Adds: `AutomatedCleanup` and `AutomatedCleanup-YYYY-MM-DD` tags
    - Adds: History comment
 
 4. **Mark as Completed** (Task 4)
    - Updates: `System.State`
-   - Adds: `AutomatedCleanup` tag
+   - Adds: `AutomatedCleanup` and `AutomatedCleanup-YYYY-MM-DD` tags
    - Adds: History comment
    - Adds: Partner comments
 
@@ -101,7 +111,7 @@ The script preserves existing tags by:
 
 Example:
 - Before: `"Bug; Critical"`
-- After: `"Bug; Critical; AutomatedCleanup"`
+- After: `"Bug; Critical; AutomatedCleanup; AutomatedCleanup-2025-12-16"`
 
 ## Example Usage
 

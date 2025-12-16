@@ -4,7 +4,7 @@
 #
 # Features:
 # - Dry Run Mode: Use -DryRun to preview changes without making any modifications
-# - Automated Tagging: All modified items are tagged with "AutomatedCleanup" for tracking
+# - Automated Tagging: All modified items are tagged with "AutomatedCleanup" and a date-based tag for tracking
 # - Task 1: Update closed items to the iteration they were closed in
 # - Task 2: Sync child item ranks with parent ranks
 # - Task 3: Move incomplete items from past iterations to backlog
@@ -22,8 +22,9 @@ param(
     [string[]]$AreaPaths = @()
 )
 
-# Tag to identify items modified by this script
+# Tags to identify items modified by this script
 $CleanupTag = "AutomatedCleanup"
+$DateTag = "AutomatedCleanup-$(Get-Date -Format 'yyyy-MM-dd')"
 
 Write-Host "=== Work Item Cleanup Script ===" -ForegroundColor Cyan
 Write-Host ""
@@ -750,9 +751,9 @@ if ($itemsToUpdateIteration.Count -gt 0) {
             # Build tag value - append to existing tags if any
             $currentTags = $item.tags
             $newTags = if ([string]::IsNullOrEmpty($currentTags)) {
-                $CleanupTag
+                "$CleanupTag; $DateTag"
             } else {
-                "$currentTags; $CleanupTag"
+                "$currentTags; $CleanupTag; $DateTag"
             }
             
             # Create PATCH operation to update iteration path, add tag, and add comment
@@ -811,9 +812,9 @@ if ($itemsToUpdateRank.Count -gt 0) {
             # Build tag value - append to existing tags if any
             $currentTags = $item.tags
             $newTags = if ([string]::IsNullOrEmpty($currentTags)) {
-                $CleanupTag
+                "$CleanupTag; $DateTag"
             } else {
-                "$currentTags; $CleanupTag"
+                "$currentTags; $CleanupTag; $DateTag"
             }
             
             # Create PATCH operation to update rank, add tag, and add comment
@@ -874,9 +875,9 @@ if ($itemsToMoveToNext.Count -gt 0 -and $backlogIterationInfo) {
             # Build tag value - append to existing tags if any
             $currentTags = $item.tags
             $newTags = if ([string]::IsNullOrEmpty($currentTags)) {
-                $CleanupTag
+                "$CleanupTag; $DateTag"
             } else {
-                "$currentTags; $CleanupTag"
+                "$currentTags; $CleanupTag; $DateTag"
             }
             
             # Create PATCH operation to move to next iteration, add tag, and add comment
@@ -937,9 +938,9 @@ if ($itemsToMarkCompleted.Count -gt 0) {
             # Build tag value - append to existing tags if any
             $currentTags = $item.tags
             $newTags = if ([string]::IsNullOrEmpty($currentTags)) {
-                $CleanupTag
+                "$CleanupTag; $DateTag"
             } else {
-                "$currentTags; $CleanupTag"
+                "$currentTags; $CleanupTag; $DateTag"
             }
             
             # Create PATCH operation to mark as Completed, add tag, and add comment
