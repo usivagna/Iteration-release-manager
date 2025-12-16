@@ -472,7 +472,7 @@ $teamMembersResponse = Invoke-ADORestAPI -Uri $teamMembersUrl
 # Build a hash set of team member IDs for fast lookup
 $teamMemberIds = @{}
 if (-not $teamMembersResponse -or -not $teamMembersResponse.value) {
-    Write-Host "Warning: Could not retrieve team members for $TeamName. PRs will not be filtered by team." -ForegroundColor Yellow
+    Write-Host "Warning: Could not retrieve team members for $TeamName. All PRs will be included without team filtering." -ForegroundColor Yellow
 } else {
     foreach ($member in $teamMembersResponse.value) {
         if ($member.identity -and $member.identity.id) {
