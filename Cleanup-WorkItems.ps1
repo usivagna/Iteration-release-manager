@@ -163,7 +163,13 @@ if (-not $useAzureCliAuth) {
         Write-Host "Enter your Personal Access Token:" -ForegroundColor Cyan
         $PAT = Read-Host -AsSecureString
         
-        if ($null -eq $PAT -or $PAT.Length -eq 0) {
+        # Validate that PAT was provided (check if empty)
+        $BSTR_Check = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($PAT)
+        $plainPAT_Check = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR_Check)
+        [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR_Check)
+        
+        if ([string]::IsNullOrEmpty($plainPAT_Check)) {
+            $plainPAT_Check = $null  # Clear from memory
             Write-Host ""
             Write-Host "ERROR: Authentication is required to proceed!" -ForegroundColor Red
             Write-Host ""
@@ -173,6 +179,7 @@ if (-not $useAzureCliAuth) {
             Write-Host "  3. Set `$env:AZURE_DEVOPS_PAT environment variable" -ForegroundColor Gray
             exit 1
         }
+        $plainPAT_Check = $null  # Clear from memory
     }
     
     Write-Host "✓ Using Personal Access Token (PAT) authentication" -ForegroundColor Green
