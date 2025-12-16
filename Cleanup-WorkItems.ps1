@@ -163,25 +163,30 @@ if (-not $useAzureCliAuth) {
         Write-Host "Enter your Personal Access Token:" -ForegroundColor Cyan
         $PAT = Read-Host -AsSecureString
         
-        # Validate that PAT was provided (check if empty)
+        # Validate that PAT was provided (check if empty) with secure memory handling
         $BSTR_Check = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($PAT)
-        $plainPAT_Check = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR_Check)
-        [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR_Check)
+        try {
+            $plainPAT_Check = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR_Check)
+            $isEmpty = [string]::IsNullOrEmpty($plainPAT_Check)
+        }
+        finally {
+            # Always clear sensitive data from memory
+            [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR_Check)
+            if ($plainPAT_Check) {
+                $plainPAT_Check = $null
+            }
+        }
         
-        if ([string]::IsNullOrEmpty($plainPAT_Check)) {
-            $plainPAT_Check = $null  # Clear from memory
+        if ($isEmpty) {
             Write-Host ""
             Write-Host "ERROR: Authentication is required to proceed!" -ForegroundColor Red
             Write-Host ""
             Write-Host "Please either:" -ForegroundColor Yellow
             Write-Host "  1. Run 'az login' to use Azure CLI authentication, or" -ForegroundColor Gray
             Write-Host "  2. Provide a PAT when prompted, or" -ForegroundColor Gray
-            Write-Host "  3. Set " -NoNewline -ForegroundColor Gray
-            Write-Host "`$env:AZURE_DEVOPS_PAT" -NoNewline -ForegroundColor Gray
-            Write-Host " environment variable" -ForegroundColor Gray
+            Write-Host "  3. Set `$env:AZURE_DEVOPS_PAT environment variable" -ForegroundColor Gray
             exit 1
         }
-        $plainPAT_Check = $null  # Clear from memory
     }
     
     Write-Host "✓ Using Personal Access Token (PAT) authentication" -ForegroundColor Green
