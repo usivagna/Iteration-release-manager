@@ -17,9 +17,10 @@ This feature ensures **100% visibility** into all code changes during the iterat
 ## What Gets Captured
 
 The feature queries all repositories in the project and finds PRs that:
-1. Have a **status of "completed"**
-2. Were **closed during the iteration date range** (between start and end dates)
-3. Are **NOT already linked** to work items that were completed in the iteration
+1. Were **created by members of the specified Azure DevOps team**
+2. Have a **status of "completed"**
+3. Were **closed during the iteration date range** (between start and end dates)
+4. Are **NOT already linked** to work items that were completed in the iteration
 
 For each PR found, the feature captures:
 - PR ID, title, and description
@@ -72,14 +73,16 @@ A new section is added to the internal summary markdown file:
 ```markdown
 ## Completed PRs Not Linked to Completed Work Items
 
-This section lists all Pull Requests that were completed during the iteration 
-period but are NOT linked to work items that were completed in this iteration.
+This section lists all Pull Requests created by **ft_buses team members** that were 
+completed during the iteration period but are NOT linked to work items that were 
+completed in this iteration.
 
 ### Summary
 
 | Metric | Value |
 |--------|-------|
-| Total Unlinked PRs | 3 |
+| Team | ft_buses |
+| Total Unlinked PRs (from team) | 3 |
 
 ### Most Active Repositories (Unlinked PRs)
 
@@ -112,21 +115,24 @@ period but are NOT linked to work items that were completed in this iteration.
 
 ## How It Works
 
-### Step 2b: Query All Completed PRs
+### Step 2b: Query Completed PRs from Team Members
 After querying completed work items (Step 2), the script adds a new step:
 
-1. **Get all repositories** in the project
-2. **For each repository**:
+1. **Get team members** from the specified Azure DevOps team
+2. **Get all repositories** in the project
+3. **For each repository**:
    - Query all PRs with status = "completed"
    - Filter by closed date within iteration range
-3. **For each PR**:
+4. **For each PR**:
+   - Check if creator is a team member (skip if not)
    - Check if it's already linked to a completed work item (skip if yes)
    - Get linked work items (even if not completed)
    - Add to unlinked PRs collection
-4. **Save results** to JSON file
-5. **Generate summary section** in internal summary
+5. **Save results** to JSON file
+6. **Generate summary section** in internal summary
 
 ### API Calls Made
+- `GET /_apis/projects/{project}/teams/{team}/members` - Get team members
 - `GET /_apis/git/repositories` - Get all repositories
 - `GET /_apis/git/repositories/{repoId}/pullrequests?searchCriteria.status=completed` - Get completed PRs
 - `GET /_apis/git/repositories/{repoId}/pullrequests/{prId}/workitems` - Get linked work items

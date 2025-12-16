@@ -8,7 +8,7 @@ This automation queries Azure DevOps for completed work items in a previous iter
 
 1. **Internal Summary**: Technical summary for engineering managers
    - Includes completed work items with linked PRs
-   - **NEW**: Includes all completed PRs that are not linked to completed work items
+   - **NEW**: Includes completed PRs from team members that are not linked to completed work items
 2. **Windows Insider Release Notes**: User-friendly release notes for public consumption
 
 **NEW**: Supports AI-powered summary generation using GitHub Copilot for better, audience-tailored content that leverages PR descriptions.
@@ -20,7 +20,7 @@ This automation queries Azure DevOps for completed work items in a previous iter
 - ✅ **Accurate Data**: Retrieves all work items and PR descriptions from the specified iteration
 - ✅ **AI-Powered (Optional)**: Use GitHub Copilot to generate tailored summaries from PR data
 - ✅ **PR-Focused**: Summaries reflect actual completed PRs with their descriptions
-- ✅ **Comprehensive Coverage**: Tracks all completed PRs, including those not linked to completed work items
+- ✅ **Team-Scoped Coverage**: Tracks completed PRs from team members, including those not linked to completed work items
 - ✅ **Multiple Outputs**: Generates both technical and user-friendly documentation
 
 ## Prerequisites

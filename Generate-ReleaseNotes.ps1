@@ -462,7 +462,26 @@ Write-Host "Saved work items data to $workItemsPath" -ForegroundColor Green
 Write-Host ""
 
 # Step 2b: Query all completed PRs during iteration (regardless of work item linkage)
-Write-Host "Step 2b: Querying all completed PRs in iteration date range..." -ForegroundColor Cyan
+Write-Host "Step 2b: Querying completed PRs from team members in iteration date range..." -ForegroundColor Cyan
+
+# Get team members to filter PRs by team
+Write-Host "Getting team members for team: $TeamName..." -ForegroundColor Cyan
+$teamMembersUrl = "$baseUrl/_apis/projects/$ProjectName/teams/$TeamName/members?api-version=7.1-preview.2"
+$teamMembersResponse = Invoke-ADORestAPI -Uri $teamMembersUrl
+
+if (-not $teamMembersResponse -or -not $teamMembersResponse.value) {
+    Write-Host "Warning: Could not retrieve team members for $TeamName. PRs will not be filtered by team." -ForegroundColor Yellow
+    $teamMemberIds = @{}
+} else {
+    # Build a hash set of team member IDs for fast lookup
+    $teamMemberIds = @{}
+    foreach ($member in $teamMembersResponse.value) {
+        if ($member.identity -and $member.identity.id) {
+            $teamMemberIds[$member.identity.id] = $member.identity.displayName
+        }
+    }
+    Write-Host "Found $($teamMemberIds.Count) team member(s)" -ForegroundColor Green
+}
 
 # First, get all repositories in the project with the specified area paths
 $reposUrl = "$baseUrl/$ProjectName/_apis/git/repositories?api-version=7.1-preview.1"
@@ -519,7 +538,16 @@ if (-not $reposResponse -or -not $reposResponse.value) {
                         continue
                     }
                     
-                    Write-Host "      Processing PR #$($pr.pullRequestId): $($pr.title)" -ForegroundColor Cyan
+                    # Filter by team membership - only include PRs created by team members
+                    if ($teamMemberIds.Count -gt 0) {
+                        $creatorId = $pr.createdBy.id
+                        if (-not $teamMemberIds.ContainsKey($creatorId)) {
+                            Write-Host "      Skipping PR #$($pr.pullRequestId) - created by non-team member ($($pr.createdBy.displayName))" -ForegroundColor Gray
+                            continue
+                        }
+                    }
+                    
+                    Write-Host "      Processing PR #$($pr.pullRequestId): $($pr.title) by $($pr.createdBy.displayName)" -ForegroundColor Cyan
                     
                     # Get work items linked to this PR
                     $prWorkItems = @()
@@ -577,7 +605,9 @@ if (-not $reposResponse -or -not $reposResponse.value) {
 
 Write-Host ""
 Write-Host "Summary of unlinked PRs:" -ForegroundColor Cyan
-Write-Host "  Total completed PRs found (not linked to completed work items): $($allCompletedPRs.Count)" -ForegroundColor Green
+Write-Host "  Team: $TeamName" -ForegroundColor Gray
+Write-Host "  Team members: $($teamMemberIds.Count)" -ForegroundColor Gray
+Write-Host "  Total completed PRs from team (not linked to completed work items): $($allCompletedPRs.Count)" -ForegroundColor Green
 Write-Host ""
 
 # Save unlinked PRs data
@@ -1017,7 +1047,7 @@ if ($prsByRepo) {
 
 ## Completed PRs Not Linked to Completed Work Items
 
-This section lists all Pull Requests that were completed during the iteration period but are NOT linked to work items that were completed in this iteration.
+This section lists all Pull Requests created by **$TeamName team members** that were completed during the iteration period but are NOT linked to work items that were completed in this iteration.
 
 $(
 if ($allCompletedPRs -and $allCompletedPRs.Count -gt 0) {
@@ -1027,7 +1057,8 @@ if ($allCompletedPRs -and $allCompletedPRs.Count -gt 0) {
 
 | Metric | Value |
 |--------|-------|
-| Total Unlinked PRs | $($allCompletedPRs.Count) |
+| Team | $TeamName |
+| Total Unlinked PRs (from team) | $($allCompletedPRs.Count) |
 
 ### Most Active Repositories (Unlinked PRs)
 
