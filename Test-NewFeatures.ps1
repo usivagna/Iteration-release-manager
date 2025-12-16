@@ -25,18 +25,14 @@ foreach ($param in $taskParams) {
 if (-not $allFound) { exit 1 }
 Write-Host ""
 
-# Test 2: Check bug filtering parameters
-Write-Host "Test 2: Validating bug filtering parameters..." -ForegroundColor Yellow
-$bugParams = @("ExcludeBugs", "IncludeBugs")
-foreach ($param in $bugParams) {
-    if ($scriptContent -match "\[switch\]\`$$param") {
-        Write-Host "  ✅ Parameter found: -$param" -ForegroundColor Green
-    } else {
-        Write-Host "  ❌ FAIL: Missing parameter: -$param" -ForegroundColor Red
-        $allFound = $false
-    }
+# Test 2: Check bug filtering parameter
+Write-Host "Test 2: Validating bug filtering parameter..." -ForegroundColor Yellow
+if ($scriptContent -match "\[switch\]\`$IncludeBugs") {
+    Write-Host "  ✅ Parameter found: -IncludeBugs" -ForegroundColor Green
+} else {
+    Write-Host "  ❌ FAIL: Missing parameter: -IncludeBugs" -ForegroundColor Red
+    exit 1
 }
-if (-not $allFound) { exit 1 }
 Write-Host ""
 
 # Test 3: Check interactive menu implementation
@@ -166,7 +162,7 @@ Write-Host "New features validated:" -ForegroundColor Cyan
 Write-Host "  ✓ Task selection switches (-Task1, -Task2, -Task3, -Task4, -AllTasks)" -ForegroundColor Gray
 Write-Host "  ✓ Parameter aliases (-UpdateIterationPaths, -SyncRanks, -MoveToBacklog, -MarkCompleted)" -ForegroundColor Gray
 Write-Host "  ✓ Interactive menu system" -ForegroundColor Gray
-Write-Host "  ✓ Bug filtering switches (-ExcludeBugs, -IncludeBugs)" -ForegroundColor Gray
+Write-Host "  ✓ Bug filtering switch (-IncludeBugs, default behavior is to exclude bugs)" -ForegroundColor Gray
 Write-Host "  ✓ Conditional task execution" -ForegroundColor Gray
 Write-Host "  ✓ Bug filtering in WIQL queries" -ForegroundColor Gray
 Write-Host "  ✓ User-facing messages and documentation" -ForegroundColor Gray

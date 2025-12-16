@@ -20,7 +20,7 @@
 #   -Task4 / -MarkCompleted: Run only Task 4 (mark deliverables completed)
 #   -AllTasks: Run all tasks (default if no interactive menu)
 # - Bug Filtering:
-#   -ExcludeBugs: Exclude "Bug" work item types (DEFAULT behavior)
+#   By default, "Bug" work item types are EXCLUDED from cleanup operations
 #   -IncludeBugs: Include "Bug" work item types in cleanup operations
 
 param(
@@ -43,8 +43,7 @@ param(
     [switch]$Task4 = $false,
     [switch]$MarkCompleted = $false,
     [switch]$AllTasks = $false,
-    # Bug filtering switches
-    [switch]$ExcludeBugs = $false,
+    # Bug filtering switch
     [switch]$IncludeBugs = $false
 )
 
