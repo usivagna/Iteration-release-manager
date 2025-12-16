@@ -1,4 +1,4 @@
-# Iteration Summary: 2025.09 Sprint 3
+﻿# Iteration Summary: 2025.09 Sprint 3
 
 **Period:** 08/25/2025 00:00:00 to 09/15/2025 23:59:59  
 **Team:** ft_buses  
