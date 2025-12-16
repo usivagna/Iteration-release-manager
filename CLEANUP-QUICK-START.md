@@ -11,6 +11,8 @@ The cleanup script performs four important tasks at the end of each iteration:
 3. **Move Incomplete Items**: Moves incomplete items from past iterations to the backlog for re-triage
 4. **Mark Completed Deliverables**: Marks deliverables as "Completed" when all their child tasks are closed
 
+**NEW**: You can now run all tasks together or select specific tasks to run individually! By default, "Bug" work item types are excluded from cleanup operations.
+
 ## Prerequisites
 
 - PowerShell 5.1+ or PowerShell Core
@@ -47,10 +49,12 @@ Always start with a dry run to see what changes would be made:
 ```
 
 This will:
+- Prompt you to select which tasks to run (interactive menu)
 - Find the most recently completed iteration
 - Identify work items that need updates
 - Show you exactly what would be changed
 - Generate a report file (but make no actual changes)
+- Exclude "Bug" work item types by default
 
 ### 3. Review the Output
 
@@ -122,38 +126,71 @@ The report contains:
 
 ## Common Usage Scenarios
 
-### Scenario 1: Regular End-of-Sprint Cleanup
+### Scenario 1: Regular End-of-Sprint Cleanup (Interactive Mode)
 
 At the end of each sprint:
 
 ```powershell
-# Preview changes
+# Preview changes with interactive task selection
 .\Cleanup-WorkItems.ps1 -DryRun
 
 # Review output, then apply
 .\Cleanup-WorkItems.ps1
 ```
 
-### Scenario 2: Clean Up a Specific Past Iteration
+### Scenario 2: Run Only Specific Tasks
+
+Run only Task 1 (update iteration paths):
 
 ```powershell
-.\Cleanup-WorkItems.ps1 -SpecificIteration "2025.08 Sprint 2" -DryRun
-.\Cleanup-WorkItems.ps1 -SpecificIteration "2025.08 Sprint 2"
+.\Cleanup-WorkItems.ps1 -Task1 -DryRun
+.\Cleanup-WorkItems.ps1 -Task1
 ```
 
-### Scenario 3: Clean Up Current Iteration
+Run only Task 3 (move incomplete items):
 
 ```powershell
-.\Cleanup-WorkItems.ps1 -UseCurrentIteration -DryRun
-.\Cleanup-WorkItems.ps1 -UseCurrentIteration
+.\Cleanup-WorkItems.ps1 -MoveToBacklog -DryRun
+.\Cleanup-WorkItems.ps1 -MoveToBacklog
 ```
 
-### Scenario 4: One-Time Use with Custom Credentials
+Run multiple specific tasks:
+
+```powershell
+.\Cleanup-WorkItems.ps1 -Task1 -Task3 -DryRun
+.\Cleanup-WorkItems.ps1 -Task1 -Task3
+```
+
+### Scenario 3: Include Bugs in Cleanup
+
+By default, bugs are excluded. To include them:
+
+```powershell
+.\Cleanup-WorkItems.ps1 -AllTasks -IncludeBugs -DryRun
+.\Cleanup-WorkItems.ps1 -Task3 -IncludeBugs
+```
+
+### Scenario 4: Clean Up a Specific Past Iteration
+
+```powershell
+.\Cleanup-WorkItems.ps1 -SpecificIteration "2025.08 Sprint 2" -Task1 -DryRun
+.\Cleanup-WorkItems.ps1 -SpecificIteration "2025.08 Sprint 2" -AllTasks
+```
+
+### Scenario 5: Clean Up Current Iteration
+
+```powershell
+.\Cleanup-WorkItems.ps1 -UseCurrentIteration -AllTasks -DryRun
+.\Cleanup-WorkItems.ps1 -UseCurrentIteration -AllTasks
+```
+
+### Scenario 6: One-Time Use with Custom Credentials
 
 ```powershell
 .\Cleanup-WorkItems.ps1 `
     -Organization "myorg" `
     -PAT "my-pat-token" `
+    -Task1 -Task2 `
     -DryRun
 ```
 
