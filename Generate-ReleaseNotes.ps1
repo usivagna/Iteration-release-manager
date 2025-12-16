@@ -10,19 +10,58 @@ param(
     [string]$OutputDir = ".\output",
     [switch]$UseCurrentIteration = $false,
     [string]$SpecificIteration = "",
-    [switch]$UseAI
-)
-
-# Configuration
-$AreaPaths = @(
-    "OS\Core\Connectivity Platform\Buses",
-    "OS\Core\Connectivity Platform\Sensors"
+    [switch]$UseAI,
+    [string[]]$AreaPaths = @()
 )
 
 Write-Host "=== Automated Iteration Release Notes Generator ===" -ForegroundColor Cyan
 Write-Host "Project: $ProjectName" -ForegroundColor Yellow
 Write-Host "Team: $TeamName" -ForegroundColor Yellow
 Write-Host ""
+
+# Prompt for Area Paths if not provided
+if ($AreaPaths.Count -eq 0) {
+    Write-Host "Area Paths are required to query work items." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Please enter Area Paths (one per line)." -ForegroundColor Cyan
+    Write-Host "Examples:" -ForegroundColor Gray
+    Write-Host "  OS\Core\Connectivity Platform\Buses" -ForegroundColor Gray
+    Write-Host "  OS\Core\Connectivity Platform\Sensors" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "Enter an Area Path (or press Enter without input to finish):" -ForegroundColor Cyan
+    
+    $inputAreaPaths = @()
+    do {
+        $areaPath = Read-Host "  Area Path"
+        if (-not [string]::IsNullOrWhiteSpace($areaPath)) {
+            $trimmedPath = $areaPath.Trim()
+            $inputAreaPaths += $trimmedPath
+            Write-Host "    Added: $trimmedPath" -ForegroundColor Green
+        }
+    } while (-not [string]::IsNullOrWhiteSpace($areaPath))
+    
+    if ($inputAreaPaths.Count -eq 0) {
+        Write-Host ""
+        Write-Host "ERROR: At least one Area Path is required!" -ForegroundColor Red
+        Write-Host "Please run the script again and provide Area Paths." -ForegroundColor Yellow
+        exit 1
+    }
+    
+    $AreaPaths = $inputAreaPaths
+    Write-Host ""
+    Write-Host "Using Area Paths:" -ForegroundColor Green
+    foreach ($path in $AreaPaths) {
+        Write-Host "  - $path" -ForegroundColor Gray
+    }
+    Write-Host ""
+}
+else {
+    Write-Host "Using provided Area Paths:" -ForegroundColor Green
+    foreach ($path in $AreaPaths) {
+        Write-Host "  - $path" -ForegroundColor Gray
+    }
+    Write-Host ""
+}
 
 # Create output directory if it doesn't exist
 if (-not (Test-Path $OutputDir)) {

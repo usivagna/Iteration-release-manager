@@ -76,6 +76,7 @@ This document demonstrates the improvements made to the markdown generation in t
 **After:**
 ```markdown
   - **PR #10667522:** [usb4] 15fs should VPP or power-dependency not Usb4HostRouter.sys | **Repo:** os.2020
+
     <details><summary>View Details</summary>
 
     ## Why is this change being made Examining classifications from previous change, most/all are resolving to BucketId `LKD_0x15F_USB4_HRD_D0_IMAGE_Usb4HostRouter.sys`. This erroneously includes failures on Nickel being misclassified...
@@ -135,7 +136,7 @@ This document demonstrates the improvements made to the markdown generation in t
 ## Benefits
 
 1. **Better Readability**: Clear hierarchy makes it easy to scan and navigate
-2. **More Scannable**: Tables present data in an organized, easy-to-read format
+2. **More Scannable**: Tables present data in organized, easy-to-read format
 3. **Less Verbose**: Collapsible details keep the main view clean while preserving information
 4. **Professional Appearance**: Consistent formatting and visual separators improve overall quality
 5. **Easier to Maintain**: Standardized format makes future updates simpler
