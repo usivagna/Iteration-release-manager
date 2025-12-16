@@ -111,9 +111,9 @@ If Azure CLI is not available, you can optionally set a PAT:
 2. Click "New Token"
 3. Give it a descriptive name (e.g., "Release Notes Generator")
 4. Set expiration (recommended: 90 days or custom)
-5. Select scopes:
-   - **Work Items**: Read (or Read & Write for Cleanup script)
-   - **Code**: Read
+5. Select scopes based on which script you'll use:
+   - **For Generate-ReleaseNotes.ps1**: Work Items (Read), Code (Read)
+   - **For Cleanup-WorkItems.ps1**: Work Items (Read & Write), Code (Read)
 6. Click "Create" and **copy the token** (you won't see it again!)
 7. Optionally set the PAT as an environment variable:
 

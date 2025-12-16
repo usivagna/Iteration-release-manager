@@ -129,11 +129,14 @@ try {
             $headers["Authorization"] = "Bearer $token"
             $useAzureCliAuth = $true
             Write-Host "✓ Using Azure CLI authentication (logged in as $($azAccount.user.name))" -ForegroundColor Green
+        } else {
+            Write-Host "  Azure CLI authentication failed, falling back to PAT" -ForegroundColor Yellow
         }
     }
 }
 catch {
     # Azure CLI not available or not logged in, will try PAT
+    Write-Host "  Azure CLI not available, falling back to PAT" -ForegroundColor Yellow
 }
 
 # Fall back to PAT authentication if Azure CLI is not available
