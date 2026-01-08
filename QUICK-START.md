@@ -41,6 +41,15 @@ $env:AZURE_DEVOPS_PAT = "paste-your-token-here"
 - ✅ Generate Windows Insider release notes
 - ✅ Save everything to the `output/` folder
 
+### Pull Request Summary (Work Item tree)
+Use this when you only need the PRs linked to a specific work item and all its descendants:
+
+```powershell
+.\Generate-PRSummary.ps1 -RootWorkItemId 12345 -ProjectName "OS" -Organization "your-org" -OutputDir "./output"
+```
+
+Authentication order matches the other scripts: Azure CLI (`az login`) > `AZURE_DEVOPS_EXT_PAT` (`az devops login`) > `AZURE_DEVOPS_PAT` > prompt. Outputs land in `output/` as timestamped JSON + Markdown files.
+
 ---
 
 ## What You'll Get

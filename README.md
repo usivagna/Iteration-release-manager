@@ -191,6 +191,25 @@ The generated `-prompt.txt` files contain:
 
 Uses enhanced templates that include PR descriptions directly in the output.
 
+### Generate Pull Request Summary (Work Item tree)
+
+Use this when you want a fast PR rollup for a specific work item and its descendants (JSON + Markdown outputs):
+
+```powershell
+.\Generate-PRSummary.ps1 -RootWorkItemId 12345 -ProjectName "OS" -Organization "your-org" -OutputDir "./output"
+```
+
+Input collection order mirrors the other scripts:
+
+1. Organization: parameter > `AZURE_DEVOPS_ORG` > prompt
+2. Authentication: Azure CLI (`az login`) > `AZURE_DEVOPS_EXT_PAT` (from `az devops login`) > `AZURE_DEVOPS_PAT` > secure prompt
+3. Root work item ID: parameter > prompt
+
+Outputs (timestamped) land in `output/` by default:
+
+- `pr-summary-<ID>_<timestamp>.json` — full details including linked work items and unique PRs
+- `pr-summary-<ID>_<timestamp>.md` — Markdown table of unique PRs plus a work item summary table
+
 ### Advanced Usage
 
 **Specify Area Paths directly (skip prompting):**

@@ -32,3 +32,5 @@ Thumbs.db
 *.tmp
 *.bak
 *.log
+output/test/pr-summary-1_2026-01-08_110943.json
+output/test/pr-summary-1_2026-01-08_110943.md
