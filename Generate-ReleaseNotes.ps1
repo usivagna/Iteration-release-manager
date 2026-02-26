@@ -461,6 +461,212 @@ $workItemsData | ConvertTo-Json -Depth 10 | Out-File $workItemsPath -Encoding ut
 Write-Host "Saved work items data to $workItemsPath" -ForegroundColor Green
 Write-Host ""
 
+# Step 2b: Query all completed PRs during iteration (regardless of work item linkage)
+Write-Host "Step 2b: Querying completed PRs from team members in iteration date range..." -ForegroundColor Cyan
+
+# Get team members to filter PRs by team
+Write-Host "Getting team members for team: $TeamName..." -ForegroundColor Cyan
+$teamMembersUrl = "$baseUrl/_apis/projects/$ProjectName/teams/$TeamName/members?api-version=7.1-preview.2"
+$teamMembersResponse = Invoke-ADORestAPI -Uri $teamMembersUrl
+
+# Build a hash set of team member IDs for fast lookup
+$teamMemberIds = @{}
+if (-not $teamMembersResponse -or -not $teamMembersResponse.value) {
+    Write-Host "Warning: Could not retrieve team members for $TeamName. All PRs will be included without team filtering." -ForegroundColor Yellow
+} else {
+    foreach ($member in $teamMembersResponse.value) {
+        if ($member.identity -and $member.identity.id) {
+            $teamMemberIds[$member.identity.id] = $member.identity.displayName
+        }
+    }
+    Write-Host "Found $($teamMemberIds.Count) team member(s)" -ForegroundColor Green
+}
+
+# First, get all repositories in the project with the specified area paths
+$reposUrl = "$baseUrl/$ProjectName/_apis/git/repositories?api-version=7.1-preview.1"
+$reposResponse = Invoke-ADORestAPI -Uri $reposUrl
+
+if (-not $reposResponse -or -not $reposResponse.value) {
+    Write-Host "No repositories found in project" -ForegroundColor Yellow
+    $allCompletedPRs = @()
+} else {
+    Write-Host "Found $($reposResponse.value.Count) repositories in project" -ForegroundColor Green
+    
+    # Collect PRs already linked to completed work items to avoid duplicates
+    $linkedPRIds = @{}
+    foreach ($wi in $workItemsData.workItems) {
+        foreach ($pr in $wi.pullRequests) {
+            $linkedPRIds["$($pr.repository)-$($pr.id)"] = $true
+        }
+    }
+    Write-Host "Found $($linkedPRIds.Count) PRs already linked to completed work items" -ForegroundColor Gray
+    
+    # Query PRs from all repos
+    $allCompletedPRs = @()
+    $repoCount = 0
+    
+    foreach ($repo in $reposResponse.value) {
+        $repoCount++
+        Write-Host "  [$repoCount/$($reposResponse.value.Count)] Checking repository: $($repo.name)..." -ForegroundColor Gray
+        
+        # Query completed PRs in the iteration date range
+        # API: GET https://dev.azure.com/{organization}/{project}/_apis/git/repositories/{repositoryId}/pullrequests
+        # Parameters: searchCriteria.status=completed
+        $prSearchUrl = "$baseUrl/$ProjectName/_apis/git/repositories/$($repo.id)/pullrequests?searchCriteria.status=completed&api-version=7.1-preview.1"
+        $prsResponse = Invoke-ADORestAPI -Uri $prSearchUrl
+        
+        if ($prsResponse -and $prsResponse.value) {
+            # Filter PRs completed in the iteration date range
+            $iterationStart = [DateTime]$iterationInfo.startDate
+            $iterationEnd = [DateTime]$iterationInfo.endDate
+            
+            $completedInIteration = $prsResponse.value | Where-Object {
+                $closedDate = [DateTime]$_.closedDate
+                $closedDate -ge $iterationStart -and $closedDate -le $iterationEnd
+            }
+            
+            if ($completedInIteration) {
+                Write-Host "    Found $($completedInIteration.Count) completed PR(s) in iteration date range" -ForegroundColor Cyan
+                
+                foreach ($pr in $completedInIteration) {
+                    $prKey = "$($repo.name)-$($pr.pullRequestId)"
+                    
+                    # Skip if this PR is already linked to a completed work item
+                    if ($linkedPRIds.ContainsKey($prKey)) {
+                        Write-Host "      Skipping PR #$($pr.pullRequestId) - already linked to completed work item" -ForegroundColor Gray
+                        continue
+                    }
+                    
+                    # Get PR details to check reviewers
+                    $prDetailsUrl = "$baseUrl/$ProjectName/_apis/git/repositories/$($repo.id)/pullrequests/$($pr.pullRequestId)?api-version=7.1-preview.1"
+                    $prDetails = Invoke-ADORestAPI -Uri $prDetailsUrl
+                    
+                    if (-not $prDetails) {
+                        Write-Host "      Skipping PR #$($pr.pullRequestId) - could not retrieve PR details" -ForegroundColor Gray
+                        continue
+                    }
+                    
+                    # Filter by team membership - include PRs where:
+                    # 1. Creator is a team member, OR
+                    # 2. Team is assigned as a reviewer
+                    $includeThisPR = $false
+                    $inclusionReason = ""
+                    
+                    if ($teamMemberIds.Count -gt 0) {
+                        # Check if creator is a team member
+                        $creatorId = $pr.createdBy.id
+                        if ($teamMemberIds.ContainsKey($creatorId)) {
+                            $includeThisPR = $true
+                            $inclusionReason = "created by team member ($($pr.createdBy.displayName))"
+                        }
+                        
+                        # Check if team is assigned as a reviewer
+                        if (-not $includeThisPR -and $prDetails.reviewers) {
+                            foreach ($reviewer in $prDetails.reviewers) {
+                                # Check if reviewer is the team itself (not an individual)
+                                if ($reviewer.isContainer) {
+                                    $reviewerName = if ($reviewer.displayName) { $reviewer.displayName.Trim() } else { "" }
+                                    $teamNameTrimmed = $TeamName.Trim()
+                                    if ($reviewerName -eq $teamNameTrimmed) {
+                                        $includeThisPR = $true
+                                        $inclusionReason = "team assigned as reviewer"
+                                        break
+                                    }
+                                }
+                                # Also check if reviewer is a team member
+                                if ($reviewer.id -and $teamMemberIds.ContainsKey($reviewer.id)) {
+                                    $includeThisPR = $true
+                                    $inclusionReason = "reviewed by team member ($($reviewer.displayName))"
+                                    break
+                                }
+                            }
+                        }
+                        
+                        if (-not $includeThisPR) {
+                            Write-Host "      Skipping PR #$($pr.pullRequestId) - not associated with team ($($pr.createdBy.displayName))" -ForegroundColor Gray
+                            continue
+                        }
+                    } else {
+                        # No team filtering
+                        $includeThisPR = $true
+                        $inclusionReason = "no team filtering"
+                    }
+                    
+                    Write-Host "      Processing PR #$($pr.pullRequestId): $($pr.title) ($inclusionReason)" -ForegroundColor Cyan
+                    
+                    # Get work items linked to this PR
+                    $prWorkItems = @()
+                    
+                    if ($prDetails) {
+                        # Get work item references from PR
+                        $workItemRefsUrl = "$baseUrl/$ProjectName/_apis/git/repositories/$($repo.id)/pullrequests/$($pr.pullRequestId)/workitems?api-version=7.1-preview.1"
+                        $workItemRefs = Invoke-ADORestAPI -Uri $workItemRefsUrl
+                        
+                        if ($workItemRefs -and $workItemRefs.value) {
+                            Write-Host "        Found $($workItemRefs.value.Count) linked work item(s)" -ForegroundColor Gray
+                            
+                            # Get details for each work item
+                            $wiIds = ($workItemRefs.value | ForEach-Object { $_.id }) -join ","
+                            if ($wiIds) {
+                                $wiUrl = "$baseUrl/$ProjectName/_apis/wit/workitems?ids=$wiIds&api-version=7.1-preview.3"
+                                $wiDetails = Invoke-ADORestAPI -Uri $wiUrl
+                                
+                                if ($wiDetails -and $wiDetails.value) {
+                                    foreach ($wi in $wiDetails.value) {
+                                        $prWorkItems += @{
+                                            id = $wi.id
+                                            title = $wi.fields.'System.Title'
+                                            type = $wi.fields.'System.WorkItemType'
+                                            state = $wi.fields.'System.State'
+                                            areaPath = $wi.fields.'System.AreaPath'
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Write-Host "        No linked work items found" -ForegroundColor Gray
+                        }
+                        
+                        # Add PR to collection
+                        $allCompletedPRs += @{
+                            id = $pr.pullRequestId
+                            title = $pr.title
+                            description = if ($pr.description) { $pr.description } else { "" }
+                            repository = $repo.name
+                            sourceBranch = $pr.sourceRefName -replace 'refs/heads/', ''
+                            targetBranch = $pr.targetRefName -replace 'refs/heads/', ''
+                            closedDate = $pr.closedDate
+                            createdBy = if ($pr.createdBy) { $pr.createdBy.displayName } else { "Unknown" }
+                            workItems = $prWorkItems
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+Write-Host ""
+Write-Host "Summary of unlinked PRs:" -ForegroundColor Cyan
+Write-Host "  Team: $TeamName" -ForegroundColor Gray
+Write-Host "  Team members: $($teamMemberIds.Count)" -ForegroundColor Gray
+Write-Host "  Total completed PRs from team (not linked to completed work items): $($allCompletedPRs.Count)" -ForegroundColor Green
+Write-Host ""
+
+# Save unlinked PRs data
+$unlinkedPRsData = @{
+    iterationName = $iterationInfo.iterationName
+    startDate = $iterationInfo.startDate
+    endDate = $iterationInfo.endDate
+    completedPRs = $allCompletedPRs
+}
+
+$unlinkedPRsPath = Join-Path $OutputDir "completed-prs-unlinked.json"
+$unlinkedPRsData | ConvertTo-Json -Depth 10 | Out-File $unlinkedPRsPath -Encoding utf8
+
+Write-Host "Saved unlinked PRs data to $unlinkedPRsPath" -ForegroundColor Green
+Write-Host ""
+
 # Function to generate AI-powered summary using GitHub Copilot
 function Invoke-CopilotSummary {
     param(
@@ -677,6 +883,54 @@ if (-not $UseAI) {
         return $cleaned
     }
 
+    # Helper function to parse PR description into Why/What/How sections
+    function Parse-PRDescription {
+        param([string]$Description)
+        
+        $why = ""
+        $what = ""
+        $how = ""
+        
+        if ([string]::IsNullOrWhiteSpace($Description)) {
+            return @{ Why = "N/A"; What = "N/A"; How = "N/A" }
+        }
+        
+        # The description contains sections like:
+        # ## Why is this change being made?
+        # content
+        # ## What changed?
+        # content
+        # ## How was the change tested?
+        # content
+        
+        # Extract "Why" section - match from "Why" header to next header or end
+        if ($Description -match '(?si)#{0,6}\s*Why\s*(?:is this change being made)?\s*\??\s*\n+(.+?)(?=\n+#{1,6}\s*(?:What|How)|$)') {
+            $why = $matches[1].Trim()
+        }
+        
+        # Extract "What" section - match from "What" header to next header or end
+        if ($Description -match '(?si)#{0,6}\s*What\s*(?:changed)?\s*\??\s*\n+(.+?)(?=\n+#{1,6}\s*(?:Why|How)|$)') {
+            $what = $matches[1].Trim()
+        }
+        
+        # Extract "How" section - match from "How" header to next header or end
+        if ($Description -match '(?si)#{0,6}\s*How\s*(?:was (?:the change |it )?tested)?\s*\??\s*\n+(.+?)(?=\n+#{1,6}\s*(?:Why|What)|$)') {
+            $how = $matches[1].Trim()
+        }
+        
+        # Clean up extracted text - normalize whitespace but preserve some structure
+        $why = if ($why) { ($why -replace '\r?\n', ' ' -replace '\s+', ' ').Trim() } else { "N/A" }
+        $what = if ($what) { ($what -replace '\r?\n', ' ' -replace '\s+', ' ').Trim() } else { "N/A" }
+        $how = if ($how) { ($how -replace '\r?\n', ' ' -replace '\s+', ' ').Trim() } else { "N/A" }
+        
+        # Escape pipe characters for table formatting
+        $why = $why -replace '\|', '&#124;'
+        $what = $what -replace '\|', '&#124;'
+        $how = $how -replace '\|', '&#124;'
+        
+        return @{ Why = $why; What = $what; How = $how }
+    }
+
     # Build summary tables
     $totalPRs = ($workItemsWithPRs | ForEach-Object { $_.pullRequests.Count } | Measure-Object -Sum).Sum
     $typeBreakdown = $workItemsWithPRs | Group-Object type | Sort-Object Count -Descending
@@ -726,54 +980,6 @@ function Format-WorkItemSection {
     
     if (-not $items -or $items.Count -eq 0) {
         return "No work items with PRs completed in $componentName component."
-    }
-    
-    # Function to parse PR description into Why/What/How sections
-    function Parse-PRDescription {
-        param([string]$Description)
-        
-        $why = ""
-        $what = ""
-        $how = ""
-        
-        if ([string]::IsNullOrWhiteSpace($Description)) {
-            return @{ Why = "N/A"; What = "N/A"; How = "N/A" }
-        }
-        
-        # The description contains sections like:
-        # ## Why is this change being made?
-        # content
-        # ## What changed?
-        # content
-        # ## How was the change tested?
-        # content
-        
-        # Extract "Why" section - match from "Why" header to next header or end
-        if ($Description -match '(?si)#{0,6}\s*Why\s*(?:is this change being made)?\s*\??\s*\n+(.+?)(?=\n+#{1,6}\s*(?:What|How)|$)') {
-            $why = $matches[1].Trim()
-        }
-        
-        # Extract "What" section - match from "What" header to next header or end
-        if ($Description -match '(?si)#{0,6}\s*What\s*(?:changed)?\s*\??\s*\n+(.+?)(?=\n+#{1,6}\s*(?:Why|How)|$)') {
-            $what = $matches[1].Trim()
-        }
-        
-        # Extract "How" section - match from "How" header to next header or end
-        if ($Description -match '(?si)#{0,6}\s*How\s*(?:was (?:the change |it )?tested)?\s*\??\s*\n+(.+?)(?=\n+#{1,6}\s*(?:Why|What)|$)') {
-            $how = $matches[1].Trim()
-        }
-        
-        # Clean up extracted text - normalize whitespace but preserve some structure
-        $why = if ($why) { ($why -replace '\r?\n', ' ' -replace '\s+', ' ').Trim() } else { "N/A" }
-        $what = if ($what) { ($what -replace '\r?\n', ' ' -replace '\s+', ' ').Trim() } else { "N/A" }
-        $how = if ($how) { ($how -replace '\r?\n', ' ' -replace '\s+', ' ').Trim() } else { "N/A" }
-        
-        # Escape pipe characters for table formatting
-        $why = $why -replace '\|', '\|'
-        $what = $what -replace '\|', '\|'
-        $how = $how -replace '\|', '\|'
-        
-        return @{ Why = $why; What = $what; How = $how }
     }
     
     ($items | ForEach-Object {
@@ -877,6 +1083,87 @@ if ($prsByRepo) {
     ($prsByRepo | Sort-Object Count -Descending | Select-Object -First 5 | ForEach-Object { "| $($_.Name) | $($_.Count) |" }) -join "`n"
 } else {
     "| No PR data available | 0 |"
+}
+)
+
+---
+
+## Completed PRs Not Linked to Completed Work Items
+
+This section lists all Pull Requests associated with **$TeamName team** (created by team members or reviewed by team) that were completed during the iteration period but are NOT linked to work items that were completed in this iteration.
+
+$(
+if ($allCompletedPRs -and $allCompletedPRs.Count -gt 0) {
+    # Summary table
+    $summarySection = @"
+### Summary
+
+| Metric | Value |
+|--------|-------|
+| Team | $TeamName |
+| Total Unlinked PRs (from team) | $($allCompletedPRs.Count) |
+
+### Most Active Repositories (Unlinked PRs)
+
+| Repository | PR Count |
+|------------|----------|
+$(
+    $prsByRepoUnlinked = $allCompletedPRs | Group-Object repository
+    if ($prsByRepoUnlinked) {
+        ($prsByRepoUnlinked | Sort-Object Count -Descending | Select-Object -First 5 | ForEach-Object { "| $($_.Name) | $($_.Count) |" }) -join "`n"
+    } else {
+        "| No PR data available | 0 |"
+    }
+)
+
+---
+
+### Pull Requests
+"@
+    
+    # Format each PR
+    $prSections = ($allCompletedPRs | ForEach-Object {
+        $pr = $_
+        $cleanPrTitle = Format-MarkdownText -Text $pr.title
+        $prSections = Parse-PRDescription -Description $pr.description
+        
+        $tableContent = @"
+
+    | Why | What | How |
+    |-----|------|-----|
+    | $($prSections.Why) | $($prSections.What) | $($prSections.How) |
+"@
+        
+        # Format linked work items
+        $workItemsList = if ($pr.workItems -and $pr.workItems.Count -gt 0) {
+            ($pr.workItems | ForEach-Object {
+                "    - **[$($_.id)]** $($_.title) (Type: $($_.type), State: $($_.state))"
+            }) -join "`n"
+        } else {
+            "    - No linked work items"
+        }
+        
+@"
+
+#### PR #$($pr.id): $cleanPrTitle
+
+**Repository:** $($pr.repository) | **Closed:** $($pr.closedDate) | **Author:** $($pr.createdBy)  
+**Branches:** $($pr.sourceBranch) → $($pr.targetBranch)
+
+<details><summary>View Details</summary>
+$tableContent
+
+**Linked Work Items:**
+$workItemsList
+
+</details>
+
+"@
+    }) -join "`n---`n"
+    
+    "$summarySection`n$prSections"
+} else {
+    "No completed PRs found that are not linked to completed work items in this iteration."
 }
 )
 

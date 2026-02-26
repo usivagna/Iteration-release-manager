@@ -7,6 +7,8 @@ Fully automated tool to generate iteration release notes and summaries for the B
 This automation queries Azure DevOps for completed work items in a previous iteration, retrieves linked pull request details, and generates two types of documentation:
 
 1. **Internal Summary**: Technical summary for engineering managers
+   - Includes completed work items with linked PRs
+   - **NEW**: Includes completed PRs associated with team (created by team members or reviewed by team) that are not linked to completed work items
 2. **Windows Insider Release Notes**: User-friendly release notes for public consumption
 
 **NEW**: Supports AI-powered summary generation using GitHub Copilot for better, audience-tailored content that leverages PR descriptions.
@@ -18,7 +20,8 @@ This automation queries Azure DevOps for completed work items in a previous iter
 - ✅ **Accurate Data**: Retrieves all work items and PR descriptions from the specified iteration
 - ✅ **AI-Powered (Optional)**: Use GitHub Copilot to generate tailored summaries from PR data
 - ✅ **PR-Focused**: Summaries reflect actual completed PRs with their descriptions
-- ✅ **Comprehensive**: Generates both technical and user-friendly documentation
+- ✅ **Team-Scoped Coverage**: Tracks completed PRs associated with team (created or reviewed by team), including those not linked to completed work items
+- ✅ **Multiple Outputs**: Generates both technical and user-friendly documentation
 
 ## Prerequisites
 
@@ -298,7 +301,8 @@ All generated files are saved in the `output` folder (or your specified output d
 ```text
 output/
 ├── iteration-info.json                      # Iteration metadata
-├── work-items-with-prs.json                 # Raw data from ADO
+├── work-items-with-prs.json                 # Raw data from ADO (work items with PRs)
+├── completed-prs-unlinked.json              # PRs completed but not linked to completed work items
 ├── internal-summary-2024-11-14_143022.md    # Engineering summary
 └── insider-release-notes-2024-11-14_143022.md # Public release notes
 ```
